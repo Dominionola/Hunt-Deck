@@ -28,7 +28,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center pt-20 overflow-hidden">
+    <section className="relative min-h-[90vh] flex items-center justify-center pt-32 pb-20 overflow-hidden">
       {/* Background Image / Placeholder - Full Bleed */}
       <div className="absolute inset-0 z-0">
         {/* Visual Placeholder for images/illustrations */}
@@ -37,12 +37,9 @@ export function Hero() {
           src="/assets/hero3.jpeg"
           alt="Professional using Hunt Deck on their phone"
           fill
-          className="object-cover object-center"
+          className="object-cover object-[center_10%]"
           priority
         />
-        {/* Gradient Overlay: Dark at bottom to blend with next section, slightly dark all over for text readability */}
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-primary)] via-[var(--color-bg-primary)]/60 to-transparent" />
       </div>
 
       {/* Content Container - Centered */}
