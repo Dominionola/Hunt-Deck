@@ -27,7 +27,7 @@ export function Footer() {
           </Link>
         </nav>
 
-        <div className="text-text-secondary/50 text-[13px] text-center">
+        <div className="text-text-secondary/70 text-[13px] text-center">
           &copy; {new Date().getFullYear()} Hunt Deck. All rights reserved.
         </div>
       </div>

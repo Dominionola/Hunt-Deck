@@ -39,3 +39,12 @@ next-env.d.ts
 
 # System Files
 Thumbs.db
+
+# Agent Files & Rules
+.agents/
+.codex/
+PRODUCT.md
+design.md
+tone.md
+marketing.md
+skills-lock.json

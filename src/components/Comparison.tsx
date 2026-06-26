@@ -15,7 +15,10 @@ export function Comparison() {
       <div className="max-w-4xl mx-auto px-6">
         
         <div className="text-center mb-16 sm:mb-20">
-          <h2 className="font-display font-semibold text-4xl sm:text-5xl text-text-primary mb-6">
+          <span className="font-sans font-medium text-[12px] tracking-[0.12em] uppercase text-[var(--color-accent)] mb-4 block">
+            Why Hunt Deck
+          </span>
+          <h2 className="font-display font-semibold text-4xl sm:text-5xl text-white mb-6">
             A smarter alternative to doing it yourself
           </h2>
         </div>
@@ -25,7 +28,7 @@ export function Comparison() {
             <thead>
               <tr>
                 <th className="p-4 border-b border-[var(--color-border)] w-2/5"></th>
-                <th className="p-4 border-b border-[var(--color-border)] text-center text-[18px] font-bold text-text-primary">
+                <th className="p-4 border-b border-[var(--color-border)] text-center text-[18px] font-bold text-[var(--color-accent)]">
                   Hunt Deck
                 </th>
                 <th className="p-4 border-b border-[var(--color-border)] text-center text-[18px] font-semibold text-text-secondary">
