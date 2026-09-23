@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-bg-primary: #081E2B;
-  --color-bg-secondary: #0C2535;
-  --color-bg-dark: #030D13;
-  
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: #90A5B4;
-  
-  --color-accent: #B4EC5B;
-  --color-accent-light: rgba(180, 236, 91, 0.15);
-  
-  --color-border: #183648;
-  --color-surface: rgba(12, 38, 53, 0.6);
+  /* Backgrounds */
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #FAF7F0;
+  --color-footer: #0F1117;
 
-  --font-display: var(--font-playfair);
-  --font-sans: var(--font-dm-sans);
+  /* Text */
+  --color-text-primary: #16213A;
+  --color-text-secondary: #5B6478;
+
+  /* Accent — muted navy blue (ONE accent only) */
+  --color-accent: #2D5F8A;
+  --color-accent-light: rgba(45, 95, 138, 0.08);
+
+  /* Borders & surfaces */
+  --color-border: #E5E1D8;
+  --color-surface: #F4F1EB;
+
+  /* Font */
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-instrument-serif);
+}
+
+.font-serif {
+  font-family: var(--font-serif), Georgia, serif;
 }
 
 :root {
   --background: var(--color-bg-primary);
   --foreground: var(--color-text-primary);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -29,9 +46,20 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-/* Base heading styles */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background-color: #2D5F8A;
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid #2D5F8A;
+  outline-offset: 2px;
 }
