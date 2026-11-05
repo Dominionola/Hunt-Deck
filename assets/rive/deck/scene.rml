@@ -1,0 +1,28 @@
+<Rive version="1" kind="fragment">
+<Artboard width="200" height="220" x="0" name="Welcome" id="0:10" styleId="0:11" defaultStateMachineId="0:14">
+<LayoutComponentStyle name="Style" id="0:11"/><Fill name="Backdrop"><SolidColor colorValue="FFFBF1E7"/></Fill>
+<Node x="100" y="110" name="Deck" id="0:12"><Image x="-184.50" y="-115.50" originX="0" originY="0" scaleX="0.3" scaleY="0.3" assetId="0:99" name="Mascot sheet"/></Node>
+<StateMachine name="Play" id="0:14"><StateMachineLayer name="Motion"><EntryState><StateTransition stateToId="0:15"/></EntryState><AnimationState x="200" animationId="0:16" id="0:15"/></StateMachineLayer></StateMachine>
+<LinearAnimation loopValue="loop" duration="150" name="Welcome motion" id="0:16"><KeyedObject objectId="0:12"><KeyedProperty property="rotation"><KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0.045" frame="75" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0" frame="150"/></KeyedProperty></KeyedObject></LinearAnimation>
+</Artboard>
+<Artboard width="200" height="220" x="260" name="Review" id="0:30" styleId="0:31" defaultStateMachineId="0:34">
+<LayoutComponentStyle name="Style" id="0:31"/><Fill name="Backdrop"><SolidColor colorValue="FFFBF1E7"/></Fill>
+<Node x="100" y="110" name="Deck" id="0:32"><Image x="-94.00" y="-477.05" originX="0" originY="0" scaleX="0.47" scaleY="0.47" assetId="0:99" name="Mascot sheet"/></Node>
+<StateMachine name="Play" id="0:34"><StateMachineLayer name="Motion"><EntryState><StateTransition stateToId="0:35"/></EntryState><AnimationState x="200" animationId="0:36" id="0:35"/></StateMachineLayer></StateMachine>
+<LinearAnimation loopValue="loop" duration="150" name="Review motion" id="0:36"><KeyedObject objectId="0:32"><KeyedProperty property="rotation"><KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0.025" frame="75" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0" frame="150"/></KeyedProperty></KeyedObject></LinearAnimation>
+</Artboard>
+<Artboard width="200" height="220" x="520" name="Goals" id="0:50" styleId="0:51" defaultStateMachineId="0:54">
+<LayoutComponentStyle name="Style" id="0:51"/><Fill name="Backdrop"><SolidColor colorValue="FFFBF1E7"/></Fill>
+<Node x="100" y="110" name="Deck" id="0:52"><Image x="-481.75" y="-477.05" originX="0" originY="0" scaleX="0.47" scaleY="0.47" assetId="0:99" name="Mascot sheet"/></Node>
+<StateMachine name="Play" id="0:54"><StateMachineLayer name="Motion"><EntryState><StateTransition stateToId="0:55"/></EntryState><AnimationState x="200" animationId="0:56" id="0:55"/></StateMachineLayer></StateMachine>
+<LinearAnimation loopValue="loop" duration="150" name="Goals motion" id="0:56"><KeyedObject objectId="0:52"><KeyedProperty property="rotation"><KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="-0.025" frame="75" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0" frame="150"/></KeyedProperty></KeyedObject></LinearAnimation>
+</Artboard>
+<Artboard width="200" height="220" x="780" name="Celebrate" id="0:70" styleId="0:71" defaultStateMachineId="0:74">
+<LayoutComponentStyle name="Style" id="0:71"/><Fill name="Backdrop"><SolidColor colorValue="FFFBF1E7"/></Fill>
+<Node x="100" y="110" name="Deck" id="0:72"><Image x="-289.05" y="-477.05" originX="0" originY="0" scaleX="0.47" scaleY="0.47" assetId="0:99" name="Mascot sheet"/></Node>
+<StateMachine name="Play" id="0:74"><StateMachineLayer name="Motion"><EntryState><StateTransition stateToId="0:75"/></EntryState><AnimationState x="200" animationId="0:76" id="0:75"/></StateMachineLayer></StateMachine>
+<LinearAnimation loopValue="loop" duration="150" name="Celebrate motion" id="0:76"><KeyedObject objectId="0:72"><KeyedProperty property="rotation"><KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0.065" frame="75" interpolationType="cubic"><CubicEaseInterpolator/></KeyFrameDouble><KeyFrameDouble value="0" frame="150"/></KeyedProperty></KeyedObject></LinearAnimation>
+</Artboard>
+<ImageAsset file="../../../public/assets/huntdeck-mascot-concept.png" name="Deck concept" id="0:99"/>
+</Rive>
+

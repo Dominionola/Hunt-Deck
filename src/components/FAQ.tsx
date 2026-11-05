@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Plus } from "@phosphor-icons/react";
 import { useGsapReveal } from "@/hooks/useGsapReveal";
 
@@ -30,6 +30,7 @@ const faqs = [
 
 export function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
+  const shouldReduceMotion = useReducedMotion();
 
   const headerRef = useGsapReveal<HTMLDivElement>({
     preset: "fade-up",
@@ -84,7 +85,7 @@ export function FAQ() {
                   </span>
                   <motion.span
                     animate={{ rotate: isOpen ? 45 : 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    transition={{ duration: shouldReduceMotion ? 0 : 0.25, ease: "easeOut" }}
                     className={`shrink-0 w-8 h-8 rounded-full border flex items-center justify-center transition-colors shadow-2xs ${
                       isOpen
                         ? "bg-[#16213A] text-white border-[#16213A]"
@@ -102,7 +103,7 @@ export function FAQ() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
                       className="overflow-hidden"
                     >
                       <div className="px-6 pb-6 pt-1 text-sm sm:text-base text-[#5B6478] leading-relaxed border-t border-[#E5E1D8]/40 bg-white">

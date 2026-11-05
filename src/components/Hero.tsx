@@ -1,108 +1,242 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useScroll, useTransform, useReducedMotion, type MotionStyle } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  useSpring,
+  useReducedMotion,
+  type MotionValue,
+  type Variants,
+} from "framer-motion";
 import { Play } from "@phosphor-icons/react";
-import { useHeroHeadlineReveal } from "@/hooks/useHeroHeadlineReveal";
 
-const marqueeCards = [
-  { src: "/assets/hero-related1.jpeg", alt: "Candidate reviewing opportunities" },
-  { src: "/assets/hero3.jpeg", alt: "Professional using Hunt Deck" },
-  { src: "/assets/hero-related2.jpeg", alt: "Career growth with Hunt Deck" },
-  { src: "/assets/hero-related3.png", alt: "Team interview and offer stage" },
-];
+const wordRevealVariants: Variants = {
+  hidden: { y: "110%", opacity: 0 },
+  visible: (i: number) => ({
+    y: "0%",
+    opacity: 1,
+    transition: {
+      duration: 0.72,
+      ease: [0.16, 1, 0.3, 1],
+      delay: 0.08 + i * 0.055,
+    },
+  }),
+};
 
-// Triple the cards for seamless infinite looping marquee
-const doubleMarqueeCards = [...marqueeCards, ...marqueeCards, ...marqueeCards];
+const TRACK_SCROLL_SPEED = 60;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Side cards follow the clamped card width plus a viewport-relative gap.
+// Center Hero Card is at k = 0 (hero3.jpeg)
+// Sequence seamlessly cycles through the 4 imagery themes:
+// ... → hero-related1 → hero3 → hero-related2 → hero-related3 → ...
+// ─────────────────────────────────────────────────────────────────────────────
+interface SideCardDef {
+  key: string;
+  k: number;
+  src: string;
+  alt: string;
+}
+
+const SIDE_CARDS: SideCardDef[] = [
+  // Left cards glide in from the left wing.
+  { key: "card-m3", k: -3, src: "/assets/hero-related3.png", alt: "Team interview and offer stage" },
+  { key: "card-m2", k: -2, src: "/assets/hero-related2.jpeg", alt: "Career growth with Hunt Deck" },
+  { key: "card-m1", k: -1, src: "/assets/hero-related1.jpeg", alt: "Candidate reviewing opportunities" },
+  // k: 0 is the Center Hero Card (hero3.jpeg), which shrinks from full-bleed
+  // Right cards glide in from the right wing.
+  { key: "card-p1", k: 1, src: "/assets/hero-related2.jpeg", alt: "Career growth with Hunt Deck" },
+  { key: "card-p2", k: 2, src: "/assets/hero-related3.png", alt: "Team interview and offer stage" },
+  { key: "card-p3", k: 3, src: "/assets/hero-related1.jpeg", alt: "Candidate reviewing opportunities" },
+  { key: "card-p4", k: 4, src: "/assets/hero3.jpeg", alt: "Professional using Hunt Deck to land their next job" },
+  { key: "card-p5", k: 5, src: "/assets/hero-related2.jpeg", alt: "Career growth with Hunt Deck" },
+  { key: "card-p6", k: 6, src: "/assets/hero-related3.png", alt: "Team interview and offer stage" },
+  { key: "card-p7", k: 7, src: "/assets/hero-related1.jpeg", alt: "Candidate reviewing opportunities" },
+  { key: "card-p8", k: 8, src: "/assets/hero3.jpeg", alt: "Professional using Hunt Deck to land their next job" },
+  { key: "card-p9", k: 9, src: "/assets/hero-related2.jpeg", alt: "Career growth with Hunt Deck" },
+  { key: "card-p10", k: 10, src: "/assets/hero-related3.png", alt: "Team interview and offer stage" },
+];
+
+function HeroSideCard({
+  k,
+  src,
+  alt,
+  scrollYProgress,
+  trackProgress,
+  sideOpacity,
+}: {
+  k: number;
+  src: string;
+  alt: string;
+  scrollYProgress: MotionValue<number>;
+  trackProgress: MotionValue<number>;
+  sideOpacity: MotionValue<number>;
+}) {
+  const enterOffset = k < 0 ? -20 : 20;
+  const entrance = useTransform(scrollYProgress, [0.02, 0.28], [enterOffset, 0]);
+  const x = useTransform(() => {
+    const roll = Math.max(trackProgress.get() - 0.38, 0) * TRACK_SCROLL_SPEED;
+    const distance = Math.abs(k);
+    const direction = k < 0 ? "-" : "+";
+    return `calc(-50% ${direction} clamp(${distance * 312}px, ${distance * 38.4}vw, ${distance * 552}px) + ${k * 3.6 + entrance.get() - roll}vw)`;
+  });
+
+  return (
+    <motion.div
+      style={{
+        opacity: sideOpacity,
+        x,
+        position: "absolute",
+        left: "50%",
+        top: "51vh",
+        width: "38.4vw",
+        height: "40.8vh",
+        minWidth: "312px",
+        maxWidth: "552px",
+        minHeight: "216px",
+        maxHeight: "384px",
+        zIndex: 10,
+        pointerEvents: "none",
+      }}
+      className="group"
+    >
+      {/* Attached Cream Elevation Backing */}
+      <div
+        className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
+        style={{
+          left: "-5%",
+          bottom: "-5%",
+          width: "100%",
+          height: "100%",
+          zIndex: 1,
+        }}
+      />
+      {/* Photo Card */}
+      <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden border border-[#E5E1D8] shadow-md bg-[#FAF7F0]">
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          sizes="(max-width: 768px) 70vw, 40vw"
+        />
+      </div>
+    </motion.div>
+  );
+}
 
 export function Hero() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const [marqueeActive, setMarqueeActive] = useState(false);
-  const headlineRef = useHeroHeadlineReveal();
   const shouldReduceMotion = useReducedMotion();
 
-  // scrollYProgress: 0 → section top at viewport top, 1 → section bottom at viewport bottom
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"],
-  });
+  const rawScrollProgress = useMotionValue(0);
+  const rawTrackProgress = useMotionValue(0);
+  const smoothScrollProgress = useSpring(rawScrollProgress, { stiffness: 180, damping: 30, mass: 0.6 });
+  const smoothTrackProgress = useSpring(rawTrackProgress, { stiffness: 180, damping: 30, mass: 0.6 });
+  const scrollYProgress = shouldReduceMotion ? rawScrollProgress : smoothScrollProgress;
+  const trackProgress = shouldReduceMotion ? rawTrackProgress : smoothTrackProgress;
 
-  // Track scroll position to trigger infinite marquee after cards are settled
   useEffect(() => {
-    if (shouldReduceMotion) return;
-    const unsubscribe = scrollYProgress.on("change", (latest) => {
-      if (latest >= 0.60) {
-        setMarqueeActive(true);
-      } else {
-        setMarqueeActive(false);
-      }
-    });
-    return () => unsubscribe();
-  }, [scrollYProgress, shouldReduceMotion]);
+    const handleScroll = () => {
+      const el = sectionRef.current;
+      if (!el) return;
+
+      const totalScrollable = el.offsetHeight - window.innerHeight;
+      if (totalScrollable <= 0) return;
+
+      const currentScroll = -el.getBoundingClientRect().top;
+      const track = Math.max(currentScroll / totalScrollable, 0);
+      const progress = Math.min(track, 1);
+      rawScrollProgress.set(shouldReduceMotion ? 0.35 : progress);
+      rawTrackProgress.set(shouldReduceMotion ? 0.35 : track);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [rawScrollProgress, rawTrackProgress, shouldReduceMotion]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // The dark overlay on the main hero image fades away as user scrolls
+  // PHASE 1: Hero Shrink & Canvas Reveal (0.00 → 0.35)
+  // Hero photo shrinks down from full bleed into center card position (+20% size).
   // ──────────────────────────────────────────────────────────────────────────
-  const overlayOpacity = useTransform(scrollYProgress, [0.06, 0.20], [1, 0]);
+  const bgOpacity = useTransform(scrollYProgress, [0.02, 0.20], [0, 1]);
+
+  const centerTop = useTransform(scrollYProgress, [0.02, 0.35], ["0vh", "51vh"]);
+  const centerWidth = useTransform(scrollYProgress, (progress) => {
+    const settled = Math.min(Math.max((progress - 0.02) / 0.33, 0), 1);
+    return `calc(${(1 - settled) * 100}vw + clamp(${settled * 312}px, ${settled * 38.4}vw, ${settled * 552}px))`;
+  });
+  const centerHeight = useTransform(scrollYProgress, (progress) => {
+    const settled = Math.min(Math.max((progress - 0.02) / 0.33, 0), 1);
+    return `calc(${(1 - settled) * 100}vh + clamp(${settled * 216}px, ${settled * 40.8}vh, ${settled * 384}px))`;
+  });
+  const centerRadius = useTransform(scrollYProgress, [0.04, 0.35], [0, 18]);
+
+  // Center card cream backing reveals as center card settles
+  const centerBackingOpacity = useTransform(scrollYProgress, [0.26, 0.35], [0, 1]);
+
+  // Unified Text Transitions (Shift & Invert during shrink)
+  const textY = useTransform(scrollYProgress, [0.02, 0.35], ["10vh", "0vh"]);
+  const textScale = useTransform(scrollYProgress, [0.02, 0.35], [1, 0.88]);
+
+  const headingColor = useTransform(scrollYProgress, [0.02, 0.22], ["#ffffff", "#16213A"]);
+  const textShadow = useTransform(scrollYProgress, [0.02, 0.22], ["0 2px 12px rgba(15, 17, 23, 0.85)", "0 2px 12px rgba(15, 17, 23, 0)"]);
+  const textColor = useTransform(
+    scrollYProgress,
+    [0.02, 0.22],
+    ["rgba(255, 255, 255, 0.88)", "#5B6478"]
+  );
+
+  const cta2Bg = useTransform(
+    scrollYProgress,
+    [0.02, 0.22],
+    ["rgba(255, 255, 255, 0.15)", "#FAF7F0"]
+  );
+  const cta2Border = useTransform(
+    scrollYProgress,
+    [0.02, 0.22],
+    ["rgba(255, 255, 255, 0.35)", "#E5E1D8"]
+  );
+  const cta2Text = useTransform(scrollYProgress, [0.02, 0.22], ["#ffffff", "#16213A"]);
+  const playIconOpacity = useTransform(scrollYProgress, [0.14, 0.26], [0, 1]);
+  const playIconWidth = useTransform(scrollYProgress, [0.14, 0.26], [0, 22]);
+
+  const badgeText = useTransform(
+    scrollYProgress,
+    [0.02, 0.22],
+    ["rgba(255, 255, 255, 0.9)", "#5B6478"]
+  );
 
   // ──────────────────────────────────────────────────────────────────────────
-  // IMAGE shrinks from full-screen → card using inset animation.
-  // Final card: 32vw × 34vh, top at 56vh, centered horizontally at left: 34vw.
+  // Side cards settle, then the entire row rolls at a constant rate as the
+  // sticky section releases and leaves the viewport.
   // ──────────────────────────────────────────────────────────────────────────
-  const imgTop    = useTransform(scrollYProgress, [0.16, 0.60], ["0vh",  "56vh"]);
-  const imgLeft   = useTransform(scrollYProgress, [0.16, 0.60], ["0vw",  "34vw"]);
-  const imgRight  = useTransform(scrollYProgress, [0.16, 0.60], ["0vw",  "34vw"]);
-  const imgBottom = useTransform(scrollYProgress, [0.16, 0.60], ["0vh",  "10vh"]);
-  const imgRadius = useTransform(scrollYProgress, [0.20, 0.60], [0, 16]);
+  const sideOpacity = useTransform(scrollYProgress, [0.02, 0.18], [0, 1]);
 
-  // White background fills in behind the image as it shrinks from edges
-  const bgOpacity = useTransform(scrollYProgress, [0.16, 0.55], [0, 1]);
+  const centerCardX = useTransform(trackProgress, (progress) =>
+    `calc(-50% - ${Math.max(progress - 0.38, 0) * TRACK_SCROLL_SPEED}vw)`
+  );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // UNIFIED TEXT TRANSITIONS
-  // The text container shifts up and scales down slightly as the image shrinks
-  // ──────────────────────────────────────────────────────────────────────────
-  const textY     = useTransform(scrollYProgress, [0.12, 0.58], ["14vh", "-8vh"]);
-  const textScale = useTransform(scrollYProgress, [0.12, 0.58], [1, 0.82]);
+  const sectionExitOpacity = useTransform(scrollYProgress, [0.85, 1.00], [1, 0.96]);
 
-  // Headline and description colors transition from white to dark blue/slate
-  const headingColor = useTransform(scrollYProgress, [0.12, 0.52], ["#ffffff", "#16213A"]);
-  const textColor    = useTransform(scrollYProgress, [0.12, 0.52], ["rgba(255, 255, 255, 0.8)", "#5B6478"]);
-
-  // Button 2 ("See how it works") style transforms
-  const cta2Bg = useTransform(scrollYProgress, [0.12, 0.52], ["rgba(255, 255, 255, 0)", "#FAF7F0"]);
-  const cta2Border = useTransform(scrollYProgress, [0.12, 0.52], ["rgba(255, 255, 255, 0.4)", "#E5E1D8"]);
-  const cta2Text = useTransform(scrollYProgress, [0.12, 0.52], ["#ffffff", "#16213A"]);
-  const playIconOpacity = useTransform(scrollYProgress, [0.35, 0.52], [0, 1]);
-  const playIconWidth = useTransform(scrollYProgress, [0.35, 0.52], [0, 24]);
-
-  // Side cards ONLY become visible during shrink phase (opacity 0 before 0.22)
-  const sideOpacity   = useTransform(scrollYProgress, [0.22, 0.58], [0, 1]);
-
-  // Review badge text color transform
-  const badgeText = useTransform(scrollYProgress, [0.12, 0.52], ["rgba(255, 255, 255, 0.9)", "#5B6478"]);
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Side cards entrance slide (starting completely off-screen)
-  // Card step = width (32vw) + gap (4vw) = 36vw
-  // ──────────────────────────────────────────────────────────────────────────
-  const g1X = useTransform(scrollYProgress, [0.25, 0.60], ["-36vw", "0vw"]);
-  const g3X = useTransform(scrollYProgress, [0.25, 0.60], [" 36vw", "0vw"]);
-  const g4X = useTransform(scrollYProgress, [0.30, 0.60], [" 72vw", "0vw"]);
-  const g5X = useTransform(scrollYProgress, [0.35, 0.60], ["108vw", "0vw"]);
-
-  // ──────────────────────────────────────────────────────────────────────────
   return (
-    // 300vh = scroll runway for full transition + filmstrip movement
-    <div ref={sectionRef} style={{ height: "300vh" }}>
-
-      {/* Sticky viewport — stays pinned while user scrolls 300vh */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
-
+    // 135vh runway: scroll wait cut by 60% for effortless browsing down the page
+    <div ref={sectionRef} style={{ height: "135vh" }}>
+      {/* Sticky viewport — pinned while user scrolls through the hero runway */}
+      <motion.div
+        style={{ opacity: sectionExitOpacity }}
+        className="sticky top-0 h-screen w-full overflow-hidden"
+      >
         {/* [0] White background reveals as image shrinks from edges */}
         <motion.div
           style={{ opacity: bgOpacity }}
@@ -110,304 +244,185 @@ export function Hero() {
         />
 
         {/* ================================================================
-            [1] SCROLL-IN CARDS (Visible only when marquee is NOT active)
+            [1] UNIFIED CARD ROW — Continuous 14-card track, +20% larger cards
             ================================================================ */}
-        {!marqueeActive && (
-          <>
-            {/* Background Component for Center Card */}
-            <motion.div
-              style={{
-                opacity:       sideOpacity,
-                position:      "absolute",
-                top:           "56vh",
-                left:          "34vw",
-                width:         "32vw",
-                height:        "34vh",
-                minWidth:      "260px",
-                minHeight:     "180px",
-                zIndex:        9,
-                pointerEvents: "none",
-              } as MotionStyle}
-            >
-              <div
-                className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
-                style={{
-                  left: "-6%",
-                  bottom: "-6%",
-                  width: "100%",
-                  height: "100%",
-                }}
-              />
-            </motion.div>
 
-            {/* Center Image Card — hero3.jpeg */}
-            <motion.div
-              style={{
-                position:     "absolute",
-                top:          imgTop,
-                left:         imgLeft,
-                right:        imgRight,
-                bottom:       imgBottom,
-                borderRadius: imgRadius,
-                zIndex:       10,
-                overflow:     "hidden",
-              } as MotionStyle}
-              className="border border-[#E5E1D8] shadow-md bg-[#FAF7F0]"
-            >
-              <Image
-                src="/assets/hero3.jpeg"
-                alt="Professional using Hunt Deck to land their next job"
-                fill
-                className="object-cover object-right-center"
-                priority
-              />
+        {/* All Side Cards (k = -3 to +10, rendered without responsive hiding) */}
+        {SIDE_CARDS.map((card) => (
+          <HeroSideCard
+            key={card.key}
+            k={card.k}
+            src={card.src}
+            alt={card.alt}
+            scrollYProgress={scrollYProgress}
+            trackProgress={trackProgress}
+            sideOpacity={sideOpacity}
+          />
+        ))}
 
-              {/* Phase 1 dark overlay (fades before shrink begins) */}
-              <motion.div
-                style={{ opacity: overlayOpacity }}
-                className="absolute inset-0 bg-[#16213A]/32 pointer-events-none"
-              />
-            </motion.div>
-
-            {/* Left-1 card (Card 1) */}
-            <motion.div
-              style={{
-                opacity:      sideOpacity,
-                x:            g1X,
-                position:     "absolute",
-                left:         "-2vw",
-                top:          "56vh",
-                width:        "32vw",
-                height:       "34vh",
-                minWidth:     "260px",
-                minHeight:    "180px",
-                zIndex:       10,
-              } as MotionStyle}
-              className="group"
-            >
-              <div
-                className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
-                style={{
-                  left: "-6%",
-                  bottom: "-6%",
-                  width: "100%",
-                  height: "100%",
-                  zIndex: 1,
-                }}
-              />
-
-              <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden border border-[#E5E1D8] shadow-md bg-[#FAF7F0]">
-                <Image src="/assets/hero-related1.jpeg" alt="Candidate reviewing opportunities" fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="32vw" />
-              </div>
-            </motion.div>
-
-            {/* Right-1 card (Card 3) */}
-            <motion.div
-              style={{
-                opacity:      sideOpacity,
-                x:            g3X,
-                position:     "absolute",
-                left:         "70vw",
-                top:          "56vh",
-                width:        "32vw",
-                height:       "34vh",
-                minWidth:     "260px",
-                minHeight:    "180px",
-                zIndex:       10,
-              } as MotionStyle}
-              className="group"
-            >
-              <div
-                className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
-                style={{
-                  left: "-6%",
-                  bottom: "-6%",
-                  width: "100%",
-                  height: "100%",
-                  zIndex: 1,
-                }}
-              />
-
-              <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden border border-[#E5E1D8] shadow-md bg-[#FAF7F0]">
-                <Image src="/assets/hero-related2.jpeg" alt="Career growth with Hunt Deck" fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="32vw" />
-              </div>
-            </motion.div>
-
-            {/* Right-2 card (Card 4) */}
-            <motion.div
-              style={{
-                opacity:      sideOpacity,
-                x:            g4X,
-                position:     "absolute",
-                left:         "106vw",
-                top:          "56vh",
-                width:        "32vw",
-                height:       "34vh",
-                minWidth:     "260px",
-                minHeight:    "180px",
-                zIndex:       10,
-              } as MotionStyle}
-              className="group"
-            >
-              <div
-                className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
-                style={{
-                  left: "-6%",
-                  bottom: "-6%",
-                  width: "100%",
-                  height: "100%",
-                  zIndex: 1,
-                }}
-              />
-
-              <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden border border-[#E5E1D8] shadow-md bg-[#FAF7F0]">
-                <Image src="/assets/hero-related3.png" alt="Team interview and offer stage" fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="32vw" />
-              </div>
-            </motion.div>
-
-            {/* Right-3 card (Card 5) */}
-            <motion.div
-              style={{
-                opacity:      sideOpacity,
-                x:            g5X,
-                position:     "absolute",
-                left:         "142vw",
-                top:          "56vh",
-                width:        "32vw",
-                height:       "34vh",
-                minWidth:     "260px",
-                minHeight:    "180px",
-                zIndex:       10,
-              } as MotionStyle}
-              className="group"
-            >
-              <div
-                className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
-                style={{
-                  left: "-6%",
-                  bottom: "-6%",
-                  width: "100%",
-                  height: "100%",
-                  zIndex: 1,
-                }}
-              />
-
-              <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden border border-[#E5E1D8] shadow-md bg-[#FAF7F0]">
-                <Image src="/assets/hero-related1.jpeg" alt="Candidate reviewing opportunities" fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="32vw" />
-              </div>
-            </motion.div>
-          </>
-        )}
-
-        {/* ================================================================
-            [2] INFINITE LOOPING MARQUEE (Visible only when marquee is active)
-            Clean photo cards with subtle offset background cards & elegant spacing
-            ================================================================ */}
-        {marqueeActive && (
-          <motion.div
-            initial={{ x: "-144vw" }}
-            animate={{ x: "0vw" }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 45,
-              ease: "linear",
+        {/* Center Card Elevation Backing (glued to Center Card position) */}
+        <motion.div
+          style={{
+            opacity: centerBackingOpacity,
+            position: "absolute",
+            top: "51vh",
+            left: "50%",
+            x: centerCardX,
+            width: "38.4vw",
+            height: "40.8vh",
+            minWidth: "312px",
+            maxWidth: "552px",
+            minHeight: "216px",
+            maxHeight: "384px",
+            zIndex: 9,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none"
+            style={{
+              left: "-5%",
+              bottom: "-5%",
+              width: "100%",
+              height: "100%",
             }}
-            className="absolute top-[56vh] flex gap-[4vw] z-10 w-max"
-            style={{ left: "-2vw" }}
-          >
-            {doubleMarqueeCards.map((card, idx) => (
-              <div
-                key={idx}
-                style={{
-                  width:        "32vw",
-                  height:       "34vh",
-                  minWidth:     "260px",
-                  minHeight:    "180px",
-                  position:     "relative",
-                }}
-                className="shrink-0 group"
-              >
-                {/* [Background Component] Attached behind each image, subtle offset (-6% left & -6% below) */}
-                <div
-                  className="absolute rounded-2xl bg-[#FAF7F0] border border-[#E5E1D8] shadow-xs pointer-events-none transition-transform duration-300 group-hover:scale-[1.01]"
-                  style={{
-                    left: "-6%",
-                    bottom: "-6%",
-                    width: "100%",
-                    height: "100%",
-                    zIndex: 1,
-                  }}
-                />
+          />
+        </motion.div>
 
-                {/* [Foreground Photo Card] */}
-                <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden border border-[#E5E1D8] shadow-md group-hover:shadow-lg transition-all duration-500 bg-[#FAF7F0]">
-                  <Image
-                    src={card.src}
-                    alt={card.alt}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="32vw"
-                  />
-                </div>
-              </div>
-            ))}
-          </motion.div>
-        )}
+        {/* Center Hero Card (hero3.jpeg) — Shrinks from full-screen, then rolls with track */}
+        <motion.div
+          style={{
+            position: "absolute",
+            top: centerTop,
+            left: "50%",
+            x: centerCardX,
+            width: centerWidth,
+            height: centerHeight,
+            minWidth: "min(312px, 100vw)",
+            maxWidth: "100vw",
+            borderRadius: centerRadius,
+            zIndex: 10,
+            overflow: "hidden",
+          }}
+          className="border border-[#E5E1D8] shadow-md bg-[#FAF7F0]"
+        >
+          <Image
+            src="/assets/hero3.jpeg"
+            alt="Professional using Hunt Deck to land their next job"
+            fill
+            className="object-cover object-center"
+            priority
+          />
+
+        </motion.div>
 
         {/* ================================================================
-            [3] UNIFIED TEXT CONTAINER (sits ABOVE the image)
+            [2] UNIFIED TEXT CONTAINER (sits ABOVE the images)
             Translates and scales dynamically. Color inverts on scroll.
             ================================================================ */}
         <motion.div
-          style={{ 
-            y: textY, 
-            scale: textScale, 
-            transformOrigin: "top center" 
+          style={{
+            y: textY,
+            scale: textScale,
+            textShadow,
+            transformOrigin: "top center",
           }}
-          className="absolute top-0 left-0 right-0 z-30 flex flex-col items-center text-center px-6 pointer-events-none pt-[110px]"
+          className="absolute top-0 left-0 right-0 z-30 flex flex-col items-center text-center px-6 pointer-events-none pt-[100px] sm:pt-[110px]"
         >
-          {/* Headline — GSAP word-split reveal on mount */}
+          {/* Headline — Declarative SSR-safe word-reveal on mount */}
           <motion.h1
-            ref={headlineRef}
             style={{ color: headingColor }}
             className="font-bold text-4xl sm:text-6xl lg:text-7xl leading-[1.08] tracking-[-0.025em] mb-5 max-w-3xl"
           >
-            Land interviews,
+            <span className="inline-block overflow-hidden align-bottom">
+              <motion.span
+                custom={0}
+                variants={shouldReduceMotion ? undefined : wordRevealVariants}
+                initial="hidden"
+                animate="visible"
+                className="inline-block mr-2 sm:mr-3.5"
+              >
+                Land
+              </motion.span>
+            </span>
+            <span className="inline-block overflow-hidden align-bottom">
+              <motion.span
+                custom={1}
+                variants={shouldReduceMotion ? undefined : wordRevealVariants}
+                initial="hidden"
+                animate="visible"
+                className="inline-block"
+              >
+                interviews,
+              </motion.span>
+            </span>
             <br />
-            <span className="font-serif italic font-normal">not rejection emails.</span>
+            <span className="font-serif italic font-normal inline-block">
+              <span className="inline-block overflow-hidden align-bottom">
+                <motion.span
+                  custom={2}
+                  variants={shouldReduceMotion ? undefined : wordRevealVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="inline-block mr-2 sm:mr-3"
+                >
+                  not
+                </motion.span>
+              </span>
+              <span className="inline-block overflow-hidden align-bottom">
+                <motion.span
+                  custom={3}
+                  variants={shouldReduceMotion ? undefined : wordRevealVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="inline-block mr-2 sm:mr-3"
+                >
+                  rejection
+                </motion.span>
+              </span>
+              <span className="inline-block overflow-hidden align-bottom">
+                <motion.span
+                  custom={4}
+                  variants={shouldReduceMotion ? undefined : wordRevealVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="inline-block"
+                >
+                  emails.
+                </motion.span>
+              </span>
+            </span>
           </motion.h1>
 
           {/* Description */}
           <motion.p
             style={{ color: textColor }}
-            className="text-base sm:text-lg leading-relaxed mb-9 max-w-xl"
+            className="text-base sm:text-lg leading-relaxed mb-8 max-w-xl"
           >
-            Hunt Deck matches you to jobs that fit, then builds everything
-            you need to apply — tailored resume, cover letter, and interview
-            prep — in minutes.
+            Hunt Deck matches you to jobs that fit, then builds everything you need to apply —
+            tailored resume, cover letter, and interview prep — in minutes.
           </motion.p>
 
-          {/* Single Component Unified CTAs (No Layout/Fade jumps) */}
+          {/* Unified CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pointer-events-auto">
-            {/* Button 1: Start for free — Framer Motion micro-interaction */}
+            {/* Button 1: Start for free */}
             <motion.div
-              whileHover={{ scale: 1.035, y: -2 }}
-              whileTap={{ scale: 0.965 }}
+              whileHover={shouldReduceMotion ? undefined : { scale: 1.035, y: -2 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.965 }}
               transition={{ type: "spring", stiffness: 420, damping: 22 }}
             >
               <Link
                 href="/signup"
-                className="h-11 px-7 flex items-center justify-center rounded-full bg-[#16213A] text-white text-sm font-semibold hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5F8A] focus-visible:ring-offset-2 transition-colors duration-200 shadow-md"
+                className="h-11 px-7 flex items-center justify-center rounded-full bg-[#16213A] text-white text-sm font-semibold hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5F8A] focus-visible:ring-offset-2 transition-all duration-200 shadow-md border border-white/20"
               >
                 Start for free
               </Link>
             </motion.div>
 
-            {/* Button 2: See how it works — spring micro-interaction wraps the scroll-driven style wrapper */}
+            {/* Button 2: See how it works */}
             <motion.div
-              whileHover={{ scale: 1.025, y: -1 }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={shouldReduceMotion ? undefined : { scale: 1.025, y: -1 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
               transition={{ type: "spring", stiffness: 380, damping: 22 }}
             >
               <motion.div
@@ -426,7 +441,7 @@ export function Hero() {
                     style={{ opacity: playIconOpacity, width: playIconWidth }}
                     className="inline-flex items-center overflow-hidden shrink-0"
                   >
-                    <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm border border-[#E5E1D8] shrink-0 mr-2">
+                    <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-xs border border-[#E5E1D8] shrink-0 mr-2">
                       <Play size={9} weight="fill" className="text-[#16213A] translate-x-[0.5px]" />
                     </span>
                   </motion.span>
@@ -436,11 +451,9 @@ export function Hero() {
             </motion.div>
           </div>
 
-          {/* Review badge below CTAs with overlapping circular headshots above the text */}
+          {/* Review badge below CTAs */}
           <motion.div
-            style={{
-              color: badgeText,
-            }}
+            style={{ color: badgeText }}
             className="mt-8 flex flex-col items-center gap-2 pointer-events-auto"
           >
             <div className="flex -space-x-2.5">
@@ -471,7 +484,7 @@ export function Hero() {
             </span>
           </motion.div>
         </motion.div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
 import {
   FilePdf,
   CheckCircle,
@@ -291,19 +290,10 @@ export function HowItWorks() {
   });
 
   return (
-    <section id="how-it-works" className="py-24 sm:py-32 bg-[#FAF7F0] border-b border-[#E5E1D8]/60 relative z-20">
+    <section id="how-it-works" className="py-24 sm:py-32 bg-[#FAF7F0] border-b border-[#E5E1D8]/60 relative">
       {/* Ambient floating cloud to break flatness and add atmospheric depth */}
-      <motion.div
-        animate={{
-          y: [0, -14, 0],
-          x: [0, 10, 0],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute -top-16 -right-24 md:-top-12 md:right-[-4%] lg:-top-20 lg:right-[1%] w-[420px] sm:w-[580px] md:w-[720px] lg:w-[860px] pointer-events-none select-none z-20"
+      <div
+        className="absolute -top-16 -right-24 md:-top-12 md:right-[-4%] lg:-top-20 lg:right-[1%] w-[420px] sm:w-[580px] md:w-[720px] lg:w-[860px] pointer-events-none select-none z-10"
       >
         <Image
           src="/assets/cloud-2.png"
@@ -312,9 +302,9 @@ export function HowItWorks() {
           height={550}
           className="w-full h-auto object-contain opacity-75"
         />
-      </motion.div>
+      </div>
 
-      <div className="max-w-[1240px] mx-auto px-6 relative z-10">
+      <div className="max-w-[1240px] mx-auto px-6 relative z-20">
         {/* Split Header */}
         <div ref={headerRef} className="mb-14 sm:mb-18">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#2D5F8A] inline-block px-3 py-1 rounded-full bg-white border border-[#E5E1D8] mb-5">

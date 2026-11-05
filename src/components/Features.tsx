@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
 import {
   FileText,
   Sparkle,
@@ -236,19 +235,10 @@ export function Features() {
   });
 
   return (
-    <section id="features" className="py-24 sm:py-32 bg-white border-b border-[#E5E1D8]/60 relative z-30">
+    <section id="features" className="py-24 sm:py-32 bg-white border-b border-[#E5E1D8]/60 relative">
       {/* Ambient background cloud elements matching inspo depth */}
-      <motion.div
-        animate={{
-          y: [0, -12, 0],
-          x: [0, 8, 0],
-        }}
-        transition={{
-          duration: 9,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute -top-14 -right-20 md:-top-18 md:right-[-2%] lg:-top-24 lg:right-[2%] w-[380px] sm:w-[540px] md:w-[680px] lg:w-[820px] pointer-events-none select-none z-20"
+      <div
+        className="absolute -top-14 -right-20 md:-top-18 md:right-[-2%] lg:-top-24 lg:right-[2%] w-[380px] sm:w-[540px] md:w-[680px] lg:w-[820px] pointer-events-none select-none z-10"
       >
         <Image
           src="/assets/cloud-1.png"
@@ -257,20 +247,11 @@ export function Features() {
           height={542}
           className="w-full h-auto object-contain opacity-85"
         />
-      </motion.div>
+      </div>
 
       {/* Secondary subtle cloud drift on lower left overlapping seamlessly into next section */}
-      <motion.div
-        animate={{
-          y: [0, 10, 0],
-          x: [0, -6, 0],
-        }}
-        transition={{
-          duration: 11,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute -bottom-24 -left-16 sm:-bottom-32 sm:-left-20 md:-bottom-40 md:-left-12 lg:-bottom-48 lg:-left-8 w-[380px] sm:w-[540px] md:w-[680px] lg:w-[800px] pointer-events-none select-none z-20"
+      <div
+        className="absolute -bottom-24 -left-16 sm:-bottom-32 sm:-left-20 md:-bottom-40 md:-left-12 lg:-bottom-48 lg:-left-8 w-[380px] sm:w-[540px] md:w-[680px] lg:w-[800px] pointer-events-none select-none z-10"
       >
         <Image
           src="/assets/cloud-2.png"
@@ -279,9 +260,9 @@ export function Features() {
           height={550}
           className="w-full h-auto object-contain opacity-80"
         />
-      </motion.div>
+      </div>
 
-      <div className="max-w-[1140px] mx-auto px-6 relative z-10">
+      <div className="max-w-[1140px] mx-auto px-6 relative z-20">
         {/* Section Header */}
         <div className="text-center mb-16">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#2D5F8A] inline-block px-3 py-1 rounded-full bg-[#FAF7F0] border border-[#E5E1D8] mb-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Star, CheckCircle } from "@phosphor-icons/react";
 import { useGsapReveal } from "@/hooks/useGsapReveal";
 
@@ -38,6 +38,7 @@ const testimonials = [
 ];
 
 export function Testimonials() {
+  const shouldReduceMotion = useReducedMotion();
   const gridRef = useGsapReveal<HTMLDivElement>({
     preset: "stagger-grid",
     staggerSelector: ".testimonial-card",
@@ -70,7 +71,7 @@ export function Testimonials() {
                   ? "bg-[#16213A] border-[#16213A] text-white shadow-xl shadow-[#16213A]/15"
                   : "bg-[#FAF7F0] border-[#E5E1D8]"
               }`}
-              whileHover={{
+              whileHover={shouldReduceMotion ? undefined : {
                 y: -6,
                 boxShadow: t.highlight
                   ? "0 20px 48px -8px rgba(22,33,58,0.30)"

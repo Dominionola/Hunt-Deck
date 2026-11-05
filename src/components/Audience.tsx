@@ -37,8 +37,8 @@ export function Audience() {
   });
 
   return (
-    <section className="py-24 sm:py-28 bg-white border-b border-[#E5E1D8]/60 relative z-10">
-      <div className="max-w-[1100px] mx-auto px-6">
+    <section className="py-24 sm:py-28 bg-white border-b border-[#E5E1D8]/60 relative">
+      <div className="max-w-[1100px] mx-auto px-6 relative z-20">
         <div className="text-center mb-16">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#2D5F8A] inline-block px-3 py-1 rounded-full bg-[#FAF7F0] border border-[#E5E1D8] mb-4">
             Who this is for

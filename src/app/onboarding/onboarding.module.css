@@ -1,0 +1,55 @@
+.mascotPose {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 80%;
+  animation: greeting 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mascotImage {
+  position: absolute;
+  width: 190%;
+  max-width: none;
+  height: auto;
+  left: -43%;
+  top: -3%;
+}
+
+.skills, .targets, .reveal {
+  width: 330%;
+  top: -212%;
+}
+
+.skills { left: -4%; }
+.targets { left: -225%; }
+.reveal { left: -115%; }
+.celebrating { animation-name: celebrate; }
+
+@keyframes greeting {
+  0% { transform: rotate(-5deg) scale(.96); }
+  55% { transform: rotate(3deg) scale(1); }
+  100% { transform: rotate(0); }
+}
+
+@keyframes celebrate {
+  0% { transform: translateY(5px) rotate(-5deg) scale(.95); }
+  60% { transform: translateY(-3px) rotate(3deg); }
+  100% { transform: translateY(0) rotate(0) scale(1); }
+}
+
+.message {
+  display: inline-block;
+  animation: arrive 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.step {
+  animation: arrive 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message, .step, .mascotPose { animation: none; }
+}

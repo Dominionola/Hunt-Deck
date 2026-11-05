@@ -381,8 +381,8 @@ function SpotlightRow({
    ───────────────────────────────────────────────────────────────────────────── */
 export function FeatureSpotlight() {
   return (
-    <section className="py-24 sm:py-32 bg-[#FAF7F0] border-b border-[#E5E1D8]/60 relative z-10">
-      <div className="max-w-[1140px] mx-auto px-6 space-y-28 sm:space-y-36 relative z-10">
+    <section className="py-24 sm:py-32 bg-[#FAF7F0] border-b border-[#E5E1D8]/60 relative">
+      <div className="max-w-[1140px] mx-auto px-6 space-y-28 sm:space-y-36 relative z-20">
         {spotlights.map((spot, i) => (
           <SpotlightRow key={i} spot={spot} />
         ))}

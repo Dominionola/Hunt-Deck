@@ -40,13 +40,21 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keep the landing page scrollable without displaying its scrollbar. */
+html:has(.landing-page) {
+  scrollbar-width: none;
+}
+
+html:has(.landing-page)::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -62,4 +70,12 @@ h1, h2, h3, h4, h5, h6 {
 :focus-visible {
   outline: 2px solid #2D5F8A;
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .landing-page *, .landing-page *::before, .landing-page *::after {
+    animation: none !important;
+    transition-duration: 0s !important;
+  }
 }

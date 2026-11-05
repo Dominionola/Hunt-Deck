@@ -1,0 +1,223 @@
+// Hunt Deck — Master Database Schema
+// PostgreSQL 16 + pgvector
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  ENTERPRISE
+}
+
+enum RemotePreference {
+  REMOTE_ONLY
+  HYBRID
+  ONSITE
+  ANY
+}
+
+enum AtsPlatform {
+  GREENHOUSE
+  LEVER
+  ASHBY
+  WORKDAY
+  OTHER
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  INTERVIEWING
+  OFFER
+  REJECTED
+}
+
+enum ContactSource {
+  HUNTER
+  APOLLO
+  LINKEDIN
+  DIRECT
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. User & Authentication
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String        @id @default(cuid())
+  authSubject  String?       @unique @db.Uuid
+  email        String        @unique
+  name         String?
+  passwordHash String?
+  role         UserRole      @default(USER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  profile      Profile?
+  resumes      Resume[]
+  applications Application[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                  String           @id @default(cuid())
+  userId              String           @unique
+  headline            String?
+  targetTitles        String[]         @default([])
+  minSalary           Int?
+  maxSalary           Int?
+  preferredLocations  String[]         @default([])
+  remotePreference    RemotePreference @default(ANY)
+  experienceYears     Int?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Resumes & Vector Embeddings
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Resume {
+  id              String         @id @default(cuid())
+  userId          String
+  title           String         @default("Master Resume")
+  originalFileUrl String
+  extractedText   String         @db.Text
+  parsedData      Json           // Structured skills, experience, education, projects
+  embedding       Unsupported("vector(1536)")?
+  atsScore        Int?
+  isPrimary       Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications    Application[]
+  fitScores       JobFitScore[]
+
+  @@map("resumes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Job Postings & Discovery
+// ─────────────────────────────────────────────────────────────────────────────
+
+model JobPosting {
+  id             String         @id @default(cuid())
+  title          String
+  company        String
+  description    String         @db.Text
+  location       String?
+  salaryMin      Int?
+  salaryMax      Int?
+  remoteType     RemotePreference @default(ANY)
+  atsPlatform    AtsPlatform    @default(OTHER)
+  applicationUrl String
+  externalJobId  String?
+  embedding      Unsupported("vector(1536)")?
+  postedAt       DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  sourceDorkId   String?
+  sourceDork     DorkDiscoverySession? @relation(fields: [sourceDorkId], references: [id], onDelete: SetNull)
+  fitScores      JobFitScore[]
+  applications   Application[]
+
+  @@unique([company, title, applicationUrl])
+  @@map("job_postings")
+}
+
+model JobFitScore {
+  id               String       @id @default(cuid())
+  resumeId         String
+  jobId            String
+  overallScore     Float        // 0.0 - 100.0
+  skillsScore      Float        // 40% weight
+  experienceScore  Float        // 30% weight
+  titleScore       Float        // 20% weight
+  locationScore    Float        // 10% weight
+  missingKeywords  String[]     @default([])
+  matchingKeywords String[]     @default([])
+  calculatedAt     DateTime     @default(now())
+
+  resume           Resume       @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  job              JobPosting   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, jobId])
+  @@map("job_fit_scores")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Applications & Kanban Tracker
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Application {
+  id              String            @id @default(cuid())
+  userId          String
+  jobId           String
+  resumeId        String
+  status          ApplicationStatus @default(SAVED)
+  tailoredResumeUrl String?
+  coverLetterText String?           @db.Text
+  appliedAt       DateTime?
+  followUpDate    DateTime?
+  interviewNotes  String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job             JobPosting        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resume          Resume            @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@map("applications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Google Dork Discovery & Contact Intelligence
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DorkDiscoverySession {
+  id           String       @id @default(cuid())
+  query        String
+  dorkType     String       // "greenhouse", "lever", "ashby", "startup_career"
+  resultsFound Int          @default(0)
+  status       String       @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  createdAt    DateTime     @default(now())
+
+  jobs         JobPosting[]
+
+  @@map("dork_discovery_sessions")
+}
+
+model CompanyContact {
+  id              String        @id @default(cuid())
+  companyName     String
+  fullName        String
+  title           String
+  email           String?
+  emailConfidence Float?        // 0.0 - 100.0
+  linkedinUrl     String?
+  department      String?
+  source          ContactSource @default(HUNTER)
+  verified        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  @@unique([companyName, fullName, title])
+  @@map("company_contacts")
+}

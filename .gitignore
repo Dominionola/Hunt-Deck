@@ -49,9 +49,26 @@ Thumbs.db
 .impeccable/
 .opencode/
 .codex/
+GEMINI.md
 awesome-design-md/
+awesome-reverse-engineer-anything/
 PRODUCT.md
 design.md
 tone.md
 marketing.md
 skills-lock.json
+references/
+
+# Internal Agent Coordination, Specs & Memory Files (Local Only)
+MEMORY.md
+STATUS.md
+TASKS.md
+MANUAL_TEST.md
+BACKEND_IMPLEMENTATION.md
+DASHBOARD_SPEC.md
+ONBOARDING_SPEC.md
+*_SPEC.md
+docs/
+DECISIONS.md
+TEST_PLAN.md
+SECURITY.md

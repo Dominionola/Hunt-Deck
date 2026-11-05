@@ -12,11 +12,11 @@ import { Footer } from "@/components/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white overflow-x-clip">
+    <div className="landing-page min-h-screen bg-white">
       {/* Section 1 — Nav (sticky, overlaid on hero) */}
       <Navigation />
 
-      <main>
+      <main className="overflow-x-clip">
         {/* Section 2 — Hero with trust strip + stats inside photo */}
         <Hero />
 
