@@ -12,6 +12,7 @@ import {
   MapPin,
   PencilSimple,
 } from "@phosphor-icons/react";
+import { CompanyContactsCard } from "./CompanyContactsCard";
 
 interface JobDetailModalProps {
   job: JobCardData | null;
@@ -139,6 +140,12 @@ export function JobDetailModal({ job, onClose, onTailor }: JobDetailModalProps) 
               </p>
             </div>
           </div>
+
+          {/* Key Contacts & Contact Intelligence Layer (Phase 4) */}
+          <CompanyContactsCard
+            companyName={job.company}
+            roleTitle={job.title}
+          />
         </div>
 
         {/* Modal Footer */}

@@ -118,7 +118,11 @@ export function JobCard({ job, onSelect, onTailor }: JobCardProps) {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onTailor ? onTailor(job) : onSelect(job);
+            if (onTailor) {
+              onTailor(job);
+            } else {
+              onSelect(job);
+            }
           }}
           className="px-3 py-1.5 bg-[#16213A] hover:bg-[#0D1527] text-white font-medium rounded-lg transition-colors cursor-pointer"
         >

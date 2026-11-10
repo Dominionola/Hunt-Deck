@@ -9,7 +9,6 @@ import {
   Buildings,
   House,
   Globe,
-  CurrencyDollar,
   Sparkle,
   WarningCircle,
 } from "@phosphor-icons/react";

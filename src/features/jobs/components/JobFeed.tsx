@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { JobCard, type JobCardData } from "./JobCard";
 import { JobDetailModal } from "./JobDetailModal";
+import { SocialHiringCard } from "./SocialHiringCard";
+import { SocialHiringPost } from "../types/socialHiring";
+import { SAMPLE_SOCIAL_POSTS } from "../data/socialHiringPosts";
 import {
   MagnifyingGlass,
   ArrowClockwise,
@@ -10,6 +13,7 @@ import {
   Faders,
   WarningOctagon,
   Lightning,
+  ChatCircleDots,
 } from "@phosphor-icons/react";
 
 const SAMPLE_JOBS: JobCardData[] = [
@@ -77,9 +81,10 @@ const SAMPLE_JOBS: JobCardData[] = [
 
 export function JobFeed() {
   const [jobs, setJobs] = useState<JobCardData[]>(SAMPLE_JOBS);
+  const [socialPosts] = useState<SocialHiringPost[]>(SAMPLE_SOCIAL_POSTS);
   const [selectedJob, setSelectedJob] = useState<JobCardData | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"ALL" | "REMOTE" | "GREENHOUSE" | "LEVER" | "HIGH_MATCH">("ALL");
+  const [activeFilter, setActiveFilter] = useState<"ALL" | "SOCIAL" | "ATS" | "REMOTE" | "HIGH_MATCH">("ALL");
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -142,24 +147,50 @@ export function JobFeed() {
   };
 
   const handleTailor = (job: JobCardData) => {
-    window.location.href = `/dashboard/resume?jobId=${job.id}&title=${encodeURIComponent(job.title)}`;
+    window.location.href = `/dashboard/tailor/${job.id}`;
   };
 
-  // Filter and search logic
-  const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter ATS jobs
+  const filteredJobs = useMemo(() => {
+    if (activeFilter === "SOCIAL") return [];
 
-    if (!matchesSearch) return false;
+    return jobs.filter((job) => {
+      const matchesSearch =
+        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.matchingSkills?.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    if (activeFilter === "REMOTE") return job.remoteType === "REMOTE_ONLY";
-    if (activeFilter === "GREENHOUSE") return job.atsPlatform === "GREENHOUSE";
-    if (activeFilter === "LEVER") return job.atsPlatform === "LEVER";
-    if (activeFilter === "HIGH_MATCH") return (job.fitScore ?? 0) >= 85;
+      if (!matchesSearch) return false;
 
-    return true;
-  });
+      if (activeFilter === "REMOTE") return job.remoteType === "REMOTE_ONLY";
+      if (activeFilter === "HIGH_MATCH") return (job.fitScore ?? 0) >= 85;
+
+      return true;
+    });
+  }, [jobs, searchTerm, activeFilter]);
+
+  // Filter Social Hiring Posts
+  const filteredSocialPosts = useMemo(() => {
+    if (activeFilter === "ATS") return [];
+
+    return socialPosts.filter((post) => {
+      const matchesSearch =
+        post.targetRole.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.authorCompany.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.authorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.matchingSkills.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        post.postContent.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (activeFilter === "REMOTE") return post.workArrangement === "remote";
+      if (activeFilter === "HIGH_MATCH") return post.fitScore >= 85;
+
+      return true;
+    });
+  }, [socialPosts, searchTerm, activeFilter]);
+
+  const totalResults = filteredJobs.length + filteredSocialPosts.length;
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8">
@@ -209,18 +240,18 @@ export function JobFeed() {
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto shrink-0 pb-1 sm:pb-0">
           <Faders size={16} className="text-[#5B6478] mr-1 hidden sm:block" />
           {[
-            { id: "ALL", label: "All Roles" },
+            { id: "ALL", label: `All Roles (${totalResults})` },
+            { id: "SOCIAL", label: `Social Hiring (${filteredSocialPosts.length})` },
+            { id: "ATS", label: `Direct ATS (${filteredJobs.length})` },
             { id: "HIGH_MATCH", label: "85%+ Match" },
             { id: "REMOTE", label: "Remote Only" },
-            { id: "GREENHOUSE", label: "Greenhouse" },
-            { id: "LEVER", label: "Lever" },
           ].map((chip) => (
             <button
               key={chip.id}
               onClick={() => setActiveFilter(chip.id as typeof activeFilter)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer shrink-0 ${
                 activeFilter === chip.id
-                  ? "bg-[#16213A] text-white"
+                  ? "bg-[#16213A] text-white shadow-2xs"
                   : "bg-[#FAF7F0] text-[#5B6478] hover:text-[#16213A] border border-[#E5E1D8]"
               }`}
             >
@@ -229,6 +260,24 @@ export function JobFeed() {
           ))}
         </div>
       </div>
+
+      {/* Mellow Social Hiring Ingestion Banner */}
+      {filteredSocialPosts.length > 0 && activeFilter !== "ATS" && (
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#EDF3F7] border border-[#2D5F8A]/20 text-xs text-[#2D5F8A]">
+          <div className="flex items-center gap-2.5">
+            <ChatCircleDots size={18} weight="fill" />
+            <span className="font-semibold text-[#16213A]">
+              Founder & Hiring Lead DMs:
+            </span>
+            <span className="text-[#5B6478] hidden sm:inline">
+              Unadvertised social opportunities with 1-click tailored outreach pitches.
+            </span>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-[#2D5F8A] border border-[#2D5F8A]/20">
+            {filteredSocialPosts.length} Active Posts
+          </span>
+        </div>
+      )}
 
       {/* State 1: Loading Skeleton */}
       {isLoading ? (
@@ -250,16 +299,16 @@ export function JobFeed() {
             Retry
           </button>
         </div>
-      ) : filteredJobs.length === 0 ? (
+      ) : totalResults === 0 ? (
         /* State 3: Empty State */
         <div className="p-12 bg-white border border-[#E5E1D8] rounded-2xl text-center space-y-4">
           <div className="w-12 h-12 rounded-full bg-[#FAF7F0] border border-[#E5E1D8] flex items-center justify-center text-[#2D5F8A] mx-auto">
             <Sparkle size={24} weight="duotone" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-[#16213A]">No matching jobs found</h3>
+            <h3 className="text-base font-semibold text-[#16213A]">No matching opportunities found</h3>
             <p className="text-xs text-[#5B6478] mt-1 max-w-sm mx-auto">
-              Try adjusting your search criteria or trigger a live crawl across ATS endpoints.
+              Try adjusting your search criteria or switch between ATS feeds and Social Hiring posts.
             </p>
           </div>
           <button
@@ -273,8 +322,17 @@ export function JobFeed() {
           </button>
         </div>
       ) : (
-        /* State 4: Interactive Grid of Job Cards */
+        /* State 4: Interactive Grid of Job & Social Cards */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Unadvertised Social Hiring Posts */}
+          {filteredSocialPosts.map((post) => (
+            <SocialHiringCard
+              key={post.id}
+              post={post}
+            />
+          ))}
+
+          {/* Direct ATS Postings */}
           {filteredJobs.map((job) => (
             <JobCard
               key={job.id}

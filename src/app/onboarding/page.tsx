@@ -124,6 +124,8 @@ function OnboardingWizard() {
 
         {currentStep === "reveal" && (
           <Step4Reveal
+            candidateSkills={skillsData?.skills}
+            targetTitles={targetsData?.targetTitles}
             minSalary={targetsData?.minSalary}
             workArrangement={targetsData?.workArrangement}
             onBack={() => goToStep("targets")}

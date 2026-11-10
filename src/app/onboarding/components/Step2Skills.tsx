@@ -2,12 +2,10 @@
 
 import React, { useState } from "react";
 import {
-  CheckCircle,
   X,
   Plus,
   ArrowRight,
   ArrowLeft,
-  Sparkle,
   ShieldCheck,
   WarningCircle,
 } from "@phosphor-icons/react";
