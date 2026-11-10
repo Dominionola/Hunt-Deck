@@ -72,3 +72,8 @@ docs/
 DECISIONS.md
 TEST_PLAN.md
 SECURITY.md
+ARCHITECTURE.md
+RULES.md
+PRD.md
+pipelines/
+.cursor/
