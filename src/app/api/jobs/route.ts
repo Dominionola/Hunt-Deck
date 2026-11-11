@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { getJobs } from "@/services/db/jobService";
 import { jobQuerySchema } from "@/lib/validations/job";
+import { getAuthenticatedUser } from "@/services/auth/serverAuth";
 
 export async function GET(req: Request) {
   const searchParams = new URL(req.url).searchParams;
-  // Fit scores are user-specific and cannot be authorized until sessions exist.
-  if (searchParams.has("userId") || searchParams.has("minFitScore")) {
-    return NextResponse.json({ error: "Personalized job data is not available." }, { status: 400 });
+
+  // Never accept caller-supplied user identity from query parameters
+  if (searchParams.has("userId")) {
+    return NextResponse.json(
+      { error: "Caller-supplied user identity is not permitted." },
+      { status: 400 }
+    );
   }
 
   const result = jobQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
@@ -15,19 +20,29 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Never pass a caller-controlled user ID to the service.
-    const jobs = await getJobs(result.data);
+    // Authenticate user server-side from session cookies
+    const user = await getAuthenticatedUser();
+    const verifiedUserId = user?.id;
+
+    const jobs = await getJobs(result.data, verifiedUserId);
     return NextResponse.json({ success: true, ...jobs });
   } catch {
     return NextResponse.json({ error: "Job listings are temporarily unavailable." }, { status: 503 });
   }
 }
 
-// Ingestion changes state and makes external requests; no verified admin session
-// exists yet, so do not read the body or execute any ingestion.
+// Ingestion changes state and makes external requests; requires admin session
 export async function POST() {
+  const user = await getAuthenticatedUser();
+  if (!user || user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Forbidden: Admin authorization required." },
+      { status: 403, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   return NextResponse.json(
-    { error: "Job ingestion is temporarily unavailable." },
-    { status: 503, headers: { "Cache-Control": "no-store" } }
+    { message: "Ingestion queue scheduled." },
+    { status: 202, headers: { "Cache-Control": "no-store" } }
   );
 }

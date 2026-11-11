@@ -60,6 +60,13 @@ skills-lock.json
 references/
 
 # Internal Agent Coordination, Specs & Memory Files (Local Only)
+AGENTS.md
+CLAUDE.md
+**/AGENTS.md
+**/CLAUDE.md
+src/**/README.md
+tests/**/README.md
+assets/**/README.md
 MEMORY.md
 STATUS.md
 TASKS.md

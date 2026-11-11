@@ -1,19 +1,32 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { getAuthenticatedUser } from "@/services/auth/serverAuth";
 
 const headers = { "Cache-Control": "no-store" };
 
 export async function GET() {
   try {
-    // Ask Auth to validate the user; cookie contents alone are not an identity.
-    const client = createClient(await cookies());
-    const { data, error } = await client.auth.getUser();
-    if (error || !data.user) {
+    const user = await getAuthenticatedUser();
+    if (!user) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401, headers });
     }
-    return NextResponse.json({ user: { id: data.user.id } }, { headers });
+
+    return NextResponse.json(
+      {
+        user: {
+          id: user.id,
+          authSubject: user.authSubject,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          profile: user.profile,
+        },
+      },
+      { headers }
+    );
   } catch {
-    return NextResponse.json({ error: "Authentication is temporarily unavailable." }, { status: 503, headers });
+    return NextResponse.json(
+      { error: "Authentication is temporarily unavailable." },
+      { status: 503, headers }
+    );
   }
 }

@@ -14,6 +14,7 @@ import {
   X,
   Radio,
   Sparkle,
+  ChartLineUp,
 } from "@phosphor-icons/react";
 import { useDashboard } from "./DashboardContext";
 
@@ -32,6 +33,7 @@ const NAVIGATION_ITEMS: NavItem[] = [
   { label: "ATS Tailor", icon: FileText, href: "/dashboard/tailor" },
   { label: "LinkedIn Optimizer", icon: Sparkle, href: "/dashboard/linkedin" },
   { label: "Interview Prep", icon: Microphone, href: "/dashboard/interview-prep" },
+  { label: "Career Intelligence", icon: ChartLineUp, href: "/dashboard/analytics" },
   { label: "Master Profile", icon: IdentificationCard, href: "/dashboard/resume" },
 ];
 

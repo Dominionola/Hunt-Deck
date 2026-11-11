@@ -25,7 +25,9 @@ test("local staging is private, non-public, and unavailable outside development"
     assert.deepEqual(await fs.readFile(createdPath), bytes);
     assert.equal(path.relative(path.join(process.cwd(), "public"), createdPath).startsWith(".."), true);
     await assert.rejects(uploadResumeFile(Buffer.from("not a pdf"), "resume.pdf", "application/pdf"));
-    await assert.rejects(generatePresignedUploadUrl());
+    await assert.rejects(generatePresignedUploadUrl(""));
+    const validPresigned = await generatePresignedUploadUrl("test-user-123");
+    assert.match(validPresigned.storageKey, /^resumes\/test-user-123\//);
     Object.assign(process.env, { NODE_ENV: "production" });
     await assert.rejects(uploadResumeFile(bytes, "resume.pdf", "application/pdf"), /not configured/);
     Object.assign(process.env, { NODE_ENV: "development", R2_PUBLIC_URL: "https://example.com" });

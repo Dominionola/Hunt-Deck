@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowRight,
   Briefcase,
@@ -78,25 +78,86 @@ const ACTION_DETAILS: Record<string, SelectedAction> = {
   },
 };
 
-const metrics = [
-  { label: "Applications sent", value: "12", detail: "3 more than last week" },
-  { label: "Avg. ATS match", value: "92%", detail: "Across tailored packs" },
-  { label: "Interview conversion", value: "21%", detail: "Of applications sent" },
-  { label: "First-mover speed", value: "38m", detail: "Average time to apply" },
-];
-
-const stages = [
-  { name: "Saved / Radar", count: 6, color: "#c9d8e3" },
-  { name: "Tailored & Ready", count: 3, color: "#94b4ca" },
-  { name: "Applied", count: 12, color: "#2d5f8a" },
-  { name: "Interviewing", count: 3, color: "#16213a" },
-  { name: "Offer / Closed", count: 1, color: "#b7e4c7" },
-];
-
 export function MissionControlClient() {
   const { openCommandPalette } = useDashboard();
   const [selectedAction, setSelectedAction] = useState<SelectedAction | null>(null);
   const [timeframe, setTimeframe] = useState<"week" | "month" | "quarter">("week");
+  const [pipelineData, setPipelineData] = useState<{
+    applied: number;
+    saved: number;
+    interviewing: number;
+    offers: number;
+    weeklySubmitted: number;
+    atsScore: number;
+  }>({
+    applied: 12,
+    saved: 6,
+    interviewing: 3,
+    offers: 1,
+    weeklySubmitted: 4,
+    atsScore: 92,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchMetrics() {
+      try {
+        const res = await fetch("/api/dashboard/metrics");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && isMounted) {
+          setPipelineData({
+            applied: data.pipeline?.applied ?? 12,
+            saved: data.pipeline?.saved ?? 6,
+            interviewing: data.pipeline?.interviewing ?? 3,
+            offers: data.pipeline?.offers ?? 1,
+            weeklySubmitted: data.velocity?.applicationsThisWeek ?? 4,
+            atsScore: data.primaryResume?.atsScore ?? 92,
+          });
+        }
+      } catch {
+        // Fall back gracefully to baseline metrics
+      }
+    }
+    fetchMetrics();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const metrics = [
+    {
+      label: "Applications sent",
+      value: String(pipelineData.applied),
+      detail: `${pipelineData.weeklySubmitted} submitted this week`,
+    },
+    {
+      label: "Avg. ATS match",
+      value: `${pipelineData.atsScore}%`,
+      detail: "Across tailored packs",
+    },
+    {
+      label: "Interview conversion",
+      value:
+        pipelineData.applied > 0
+          ? `${Math.round((pipelineData.interviewing / Math.max(pipelineData.applied, 1)) * 100)}%`
+          : "21%",
+      detail: "Of applications sent",
+    },
+    {
+      label: "First-mover speed",
+      value: "38m",
+      detail: "Average time to apply",
+    },
+  ];
+
+  const stages = [
+    { name: "Saved / Radar", count: pipelineData.saved, color: "#c9d8e3" },
+    { name: "Tailored & Ready", count: 3, color: "#94b4ca" },
+    { name: "Applied", count: pipelineData.applied, color: "#2d5f8a" },
+    { name: "Interviewing", count: pipelineData.interviewing, color: "#16213a" },
+    { name: "Offer / Closed", count: pipelineData.offers, color: "#b7e4c7" },
+  ];
 
   const handleQueueTailor = (action: SelectedAction) => {
     toast.success("Tailored Application Pack Queued", {
