@@ -61,7 +61,7 @@ export function Navigation() {
         {/* Right: CTAs */}
         <div className="hidden md:flex items-center gap-3">
           <Link
-            href="/signin"
+            href="/login"
             className="text-sm font-medium text-[#5B6478] hover:text-[#16213A] px-3 py-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5F8A] transition-colors duration-200"
           >
             Sign in
@@ -107,7 +107,7 @@ export function Navigation() {
             ))}
             <div className="pt-2 border-t border-[#E5E1D8] flex flex-col gap-3">
               <Link
-                href="/signin"
+                href="/login"
                 className="text-sm font-medium text-[#5B6478] py-1"
                 onClick={() => setMenuOpen(false)}
               >
