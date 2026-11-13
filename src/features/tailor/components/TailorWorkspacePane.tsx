@@ -31,6 +31,7 @@ export function TailorWorkspacePane({
   const [activeTab, setActiveTab] = useState<"resume" | "cover_letter" | "audit">("resume");
   const [showDiffMap, setShowDiffMap] = useState<Record<string, boolean>>({});
   const [copiedLetter, setCopiedLetter] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const toggleDiff = (key: string) => {
     setShowDiffMap((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -50,6 +51,50 @@ export function TailorWorkspacePane({
       description: "4-paragraph bespoke cover letter copied to clipboard.",
     });
     setTimeout(() => setCopiedLetter(false), 2500);
+  };
+
+  const handleDownloadAts = async (format: "html" | "text" = "html") => {
+    setIsExporting(true);
+    try {
+      const res = await fetch("/api/tailor/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: session.masterProfile.fullName,
+          email: session.masterProfile.email,
+          phone: session.masterProfile.phone,
+          location: session.masterProfile.location,
+          summary: session.masterProfile.summary,
+          targetRoleTitle: session.job.title,
+          skills: session.masterProfile.skills,
+          tailoredRoles: session.tailoredRoles,
+          format,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${session.masterProfile.fullName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-ats-resume.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("ATS Document Downloaded", {
+        description: `Exported clean, single-column machine-readable ${format.toUpperCase()} file.`,
+      });
+    } catch {
+      toast.error("Export Failed", {
+        description: "Launching browser print layout instead.",
+      });
+      window.print();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handlePrintPdf = () => {
@@ -111,11 +156,20 @@ export function TailorWorkspacePane({
         <div className="flex items-center gap-2">
           <button
             type="button"
+            disabled={isExporting}
+            onClick={() => handleDownloadAts("html")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 border border-[#E5E1D8] text-[#16213A] text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <DownloadSimple size={14} className="text-[#2D5F8A]" />
+            <span>{isExporting ? "Exporting..." : "Download ATS File"}</span>
+          </button>
+          <button
+            type="button"
             onClick={handlePrintPdf}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 border border-[#E5E1D8] text-[#16213A] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
           >
             <Printer size={14} className="text-[#5B6478]" />
-            <span>Export ATS PDF</span>
+            <span>Print PDF</span>
           </button>
         </div>
       </div>
