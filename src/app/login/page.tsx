@@ -39,11 +39,17 @@ export default function LoginPage() {
         return;
       }
 
-      toast.success("Welcome back!", {
-        description: "Authenticated securely with your Hunt Deck workspace.",
-      });
-
-      router.push("/dashboard");
+      if (data.onboardingCompleted === false) {
+        toast.success("Welcome!", {
+          description: "Let's calibrate your career profile before entering Mission Control.",
+        });
+        router.push("/onboarding");
+      } else {
+        toast.success("Welcome back!", {
+          description: "Authenticated securely with your Hunt Deck workspace.",
+        });
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch {
       setErrorMessage("Unable to connect to authentication services. Please retry.");

@@ -10,6 +10,7 @@ import {
   CurrencyDollar,
   Eye,
   ShieldCheck,
+  SpinnerGap,
 } from "@phosphor-icons/react";
 import type { TopMatchCard, SkillItem } from "@/lib/validations/onboarding";
 import { calculateCandidateFit } from "@/services/matching/fitScoreEngine";
@@ -22,6 +23,7 @@ interface Step4RevealProps {
   workArrangement?: string;
   onBack: () => void;
   onEnterDashboard: () => void;
+  isSubmitting?: boolean;
 }
 
 const SEED_OPPORTUNITIES = [
@@ -84,6 +86,7 @@ export function Step4Reveal({
   workArrangement = "REMOTE",
   onBack,
   onEnterDashboard,
+  isSubmitting = false,
 }: Step4RevealProps) {
   const [previewedId, setPreviewedId] = useState<string | null>(null);
 
@@ -245,11 +248,21 @@ export function Step4Reveal({
         <div className="max-w-md mx-auto">
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={onEnterDashboard}
-            className="w-full sm:w-auto min-h-[44px] px-8 py-3.5 rounded-full bg-[#16213A] hover:bg-[#0D1527] text-white text-sm font-semibold flex items-center justify-center gap-2.5 mx-auto shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+            className="w-full sm:w-auto min-h-[44px] px-8 py-3.5 rounded-full bg-[#16213A] hover:bg-[#0D1527] disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2.5 mx-auto shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
           >
-            <span>Enter My Mission Control</span>
-            <ArrowRight size={16} weight="bold" />
+            {isSubmitting ? (
+              <>
+                <SpinnerGap size={18} className="animate-spin" />
+                <span>Entering Mission Control...</span>
+              </>
+            ) : (
+              <>
+                <span>Enter My Mission Control</span>
+                <ArrowRight size={16} weight="bold" />
+              </>
+            )}
           </button>
           <p className="text-xs text-[#5B6478] mt-2.5">
             Step into the personalized candidate command center.

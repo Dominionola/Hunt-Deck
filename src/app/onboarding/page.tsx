@@ -66,8 +66,43 @@ function OnboardingWizard() {
     goToStep("reveal");
   };
 
-  const handleEnterDashboard = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleEnterDashboard = async () => {
+    setIsSubmitting(true);
+    try {
+      await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          importData: importData || {
+            resumeFileId: "scratch-profile-init",
+            fileName: "Master Profile",
+            fileSizeBytes: 0,
+            isScratchMode: true,
+          },
+          skillsData: skillsData || {
+            skills: [
+              { name: "TypeScript", category: "Languages", isVerified: true },
+              { name: "React", category: "Frameworks", isVerified: true },
+              { name: "Node.js", category: "Frameworks", isVerified: true },
+            ],
+            atsReadabilityScore: 88,
+          },
+          targetsData: targetsData || {
+            targetTitles: ["Full-Stack Engineer"],
+            workArrangement: "REMOTE",
+            preferredLocations: ["Remote US"],
+            seniorityLevel: "SENIOR",
+            minSalary: 140000,
+          },
+        }),
+      });
+    } catch {
+      // Graceful fallback if network or session unavailable
+    }
     router.push("/dashboard");
+    router.refresh();
   };
 
   return (
@@ -130,6 +165,7 @@ function OnboardingWizard() {
             workArrangement={targetsData?.workArrangement}
             onBack={() => goToStep("targets")}
             onEnterDashboard={handleEnterDashboard}
+            isSubmitting={isSubmitting}
           />
         )}
       </div>

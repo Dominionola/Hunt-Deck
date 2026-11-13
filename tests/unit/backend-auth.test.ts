@@ -5,6 +5,8 @@ import { GET as getSession } from "../../src/app/api/auth/session/route";
 import { POST as uploadResume } from "../../src/app/api/resumes/upload/route";
 import { GET as getJobs } from "../../src/app/api/jobs/route";
 import { GET as getDashboardMetrics } from "../../src/app/api/dashboard/metrics/route";
+import { POST as saveOnboarding } from "../../src/app/api/onboarding/route";
+import { completeOnboardingSchema } from "../../src/lib/validations/onboarding";
 import {
   generatePresignedUploadUrl,
   generatePresignedDownloadUrl,
@@ -116,6 +118,54 @@ describe("Backend Infrastructure & Authentication (TASK-BE-001 - TASK-BE-008)", 
           message: "Access denied: You do not have permission to access this document.",
         }
       );
+    });
+  });
+
+  describe("4. Onboarding Gate & Persistence Endpoint", () => {
+    it("rejects unauthenticated onboarding submission with 401 Unauthorized", async () => {
+      const request = new Request("http://localhost:3000/api/onboarding", {
+        method: "POST",
+        headers: {
+          origin: "http://localhost:3000",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+
+      const response = await saveOnboarding(request);
+      assert.equal(response.status, 401);
+      const data = await response.json();
+      assert.equal(data.error, "Unauthorized");
+    });
+
+    it("validates complete onboarding payload with valid career targets and skills", () => {
+      const payload = {
+        importData: {
+          resumeFileId: "res_abc_123",
+          fileName: "Alex_Rivera_Resume.pdf",
+          fileSizeBytes: 104200,
+          linkedinUrl: "https://linkedin.com/in/alexrivera",
+          isScratchMode: false,
+        },
+        skillsData: {
+          skills: [
+            { name: "TypeScript", category: "Languages", isVerified: true },
+            { name: "React", category: "Frameworks", isVerified: true },
+            { name: "PostgreSQL", category: "Frameworks", isVerified: true },
+          ],
+          atsReadabilityScore: 92,
+        },
+        targetsData: {
+          targetTitles: ["Staff Software Engineer", "Tech Lead"],
+          workArrangement: "REMOTE",
+          preferredLocations: ["Remote US"],
+          seniorityLevel: "LEAD",
+          minSalary: 185000,
+        },
+      };
+
+      const result = completeOnboardingSchema.safeParse(payload);
+      assert.equal(result.success, true);
     });
   });
 });
