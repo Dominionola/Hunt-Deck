@@ -104,18 +104,36 @@ export function JobFeed() {
             remoteType?: string;
             atsPlatform: string;
             applicationUrl: string;
-          }) => ({
-            id: item.id,
-            title: item.title,
-            company: item.company,
-            location: item.location,
-            remoteType: item.remoteType,
-            atsPlatform: item.atsPlatform,
-            applicationUrl: item.applicationUrl,
-            fitScore: 85,
-            matchingSkills: ["TypeScript", "React", "PostgreSQL"],
-            missingSkills: ["Kubernetes"],
-          }));
+            fitScores?: Array<{
+              overallScore: number;
+              matchingKeywords: string[];
+              missingKeywords: string[];
+            }>;
+          }) => {
+            const fitRecord = item.fitScores?.[0];
+            const fitScore = fitRecord ? Math.round(fitRecord.overallScore) : 88;
+            const matchingSkills =
+              fitRecord?.matchingKeywords && fitRecord.matchingKeywords.length > 0
+                ? fitRecord.matchingKeywords
+                : ["TypeScript", "Distributed Systems", "PostgreSQL"];
+            const missingSkills =
+              fitRecord?.missingKeywords && fitRecord.missingKeywords.length > 0
+                ? fitRecord.missingKeywords
+                : ["Kubernetes"];
+
+            return {
+              id: item.id,
+              title: item.title,
+              company: item.company,
+              location: item.location || "Remote",
+              remoteType: item.remoteType as any,
+              atsPlatform: item.atsPlatform as any,
+              applicationUrl: item.applicationUrl,
+              fitScore,
+              matchingSkills,
+              missingSkills,
+            };
+          });
           setJobs(mapped);
           return;
         }

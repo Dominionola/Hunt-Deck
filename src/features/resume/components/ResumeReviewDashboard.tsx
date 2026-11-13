@@ -26,10 +26,32 @@ export function ResumeReviewDashboard({
   onSave,
 }: ResumeReviewDashboardProps) {
   const [resumeData, setResumeData] = useState<ResumeParsedData | null>(initialData);
+  const [resumeId, setResumeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Sync with live database on mount if initialData is not supplied
+  React.useEffect(() => {
+    if (!initialData) {
+      async function fetchSavedResume() {
+        try {
+          const res = await fetch("/api/resumes");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.resume?.parsedData) {
+              setResumeData(data.resume.parsedData);
+              setResumeId(data.resume.id);
+            }
+          }
+        } catch {
+          // Gracefully continue to dropzone
+        }
+      }
+      fetchSavedResume();
+    }
+  }, [initialData]);
 
   const handleFileUpload = async (file: File) => {
     setIsLoading(true);
@@ -52,7 +74,10 @@ export function ResumeReviewDashboard({
         throw new Error(json.error || "Failed to process resume");
       }
 
-      setResumeData(json.parsedData);
+      setResumeData(json.extractedData || json.parsedData);
+      if (json.resumeId) {
+        setResumeId(json.resumeId);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upload failed";
       setErrorMessage(msg);
@@ -69,8 +94,14 @@ export function ResumeReviewDashboard({
       if (onSave) {
         await onSave(resumeData);
       } else {
-        // Simulated local save
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        const res = await fetch("/api/resumes", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeId, parsedData: resumeData }),
+        });
+        if (!res.ok) {
+          throw new Error("Failed to persist profile changes.");
+        }
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);

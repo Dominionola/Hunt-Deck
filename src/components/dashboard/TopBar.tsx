@@ -13,6 +13,8 @@ import {
 } from "@phosphor-icons/react";
 import { useDashboard } from "./DashboardContext";
 import { toast } from "@/components/base/toast/toast";
+import { Dropdown, DropdownDivider, DropdownPopover, DropdownTrigger } from "@/components/base/dropdown/dropdown";
+import { cx } from "@/utils/cx";
 
 export function TopBar() {
   const { openCommandPalette, toggleMobileMenu } = useDashboard();
@@ -75,13 +77,9 @@ export function TopBar() {
         </Link>
 
         {/* User Profile Pill & Dropdown */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setProfileDropdownOpen((prev) => !prev)}
-            className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-[#FAF7F0] border border-transparent hover:border-[#E5E1D8] transition-all text-left"
-            aria-expanded={profileDropdownOpen}
-            aria-haspopup="true"
+        <Dropdown isOpen={profileDropdownOpen} onOpenChange={setProfileDropdownOpen}>
+          <DropdownTrigger
+            className="flex min-h-11 min-w-11 items-center gap-2 rounded-xl border border-transparent px-2 text-start transition-colors hover:bg-background-secondary-hover hover:border-border-button-default active:scale-[0.98]"
             aria-label="User profile menu"
           >
             <div className="w-8 h-8 rounded-lg bg-[#16213A] text-white flex items-center justify-center font-bold text-xs font-mono">
@@ -99,21 +97,12 @@ export function TopBar() {
 
             <CaretDown
               size={12}
-              className={`hidden md:block text-[#5B6478] transition-transform ${
-                profileDropdownOpen ? "rotate-180" : ""
-              }`}
+              className={cx("hidden md:block text-foreground-icon-secondary transition-transform motion-reduce:transition-none", profileDropdownOpen && "rotate-180")}
             />
-          </button>
+          </DropdownTrigger>
 
           {/* Profile Dropdown */}
-          {profileDropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setProfileDropdownOpen(false)}
-                aria-hidden="true"
-              />
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-[#E5E1D8] shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+          <DropdownPopover aria-label="User profile menu" placement="bottom end" offset={8}>
                 <div className="px-3 py-2 border-b border-[#E5E1D8]/60 mb-1">
                   <div className="text-xs font-bold text-[#16213A]">Marcus Vance</div>
                   <div className="text-[11px] text-[#5B6478] truncate">
@@ -127,7 +116,7 @@ export function TopBar() {
                 <Link
                   href="/dashboard/resume"
                   onClick={() => setProfileDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[#5B6478] hover:text-[#16213A] hover:bg-[#FAF7F0] transition-colors"
+                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-body-medium text-text-secondary transition-colors hover:bg-background-secondary-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
                 >
                   <User size={15} />
                   <span>Master Profile</span>
@@ -139,26 +128,24 @@ export function TopBar() {
                     setProfileDropdownOpen(false);
                     openCommandPalette();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[#5B6478] hover:text-[#16213A] hover:bg-[#FAF7F0] transition-colors text-left"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-start text-body-medium text-text-secondary transition-colors hover:bg-background-secondary-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
                 >
                   <Sliders size={15} />
                   <span>Quick Actions (⌘K)</span>
                 </button>
 
-                <div className="border-t border-[#E5E1D8]/60 my-1" />
+                <DropdownDivider />
 
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-rose-600 hover:bg-rose-50 transition-colors text-left"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-start text-body-medium text-text-error-primary transition-colors hover:bg-background-secondary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
                 >
                   <SignOut size={15} />
                   <span>Sign Out</span>
                 </button>
-              </div>
-            </>
-          )}
-        </div>
+          </DropdownPopover>
+        </Dropdown>
       </div>
     </header>
   );

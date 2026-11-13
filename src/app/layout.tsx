@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { Toaster } from "@/components/base/toast/toast";
+import { DirectionProvider } from "@/components/foundations/direction/direction";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,11 +32,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      dir="ltr"
       className={`${inter.variable} ${instrumentSerif.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-white text-[#16213A]">
-        {children}
-        <Toaster position="bottom-end" />
+        <DirectionProvider locale="en-US">
+          {children}
+          <Toaster position="bottom-end" />
+        </DirectionProvider>
       </body>
     </html>
   );

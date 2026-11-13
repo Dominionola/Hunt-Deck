@@ -48,3 +48,19 @@ export async function setPrimaryResume(userId: string, resumeId: string) {
     }),
   ]);
 }
+
+export async function updateResumeParsedData(
+  userId: string,
+  resumeId: string,
+  parsedData: Record<string, unknown>
+) {
+  return db.resume.update({
+    where: {
+      id: resumeId,
+      userId,
+    },
+    data: {
+      parsedData: parsedData as any,
+    },
+  });
+}

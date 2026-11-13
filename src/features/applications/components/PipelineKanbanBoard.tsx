@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   MagnifyingGlass,
   Plus,
@@ -19,6 +19,27 @@ export function PipelineKanbanBoard() {
   const [selectedApp, setSelectedApp] = useState<PipelineApplication | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addModalInitialStage, setAddModalInitialStage] = useState<PipelineStage>("saved");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Sync with live database on mount
+  useEffect(() => {
+    async function loadApplications() {
+      try {
+        const res = await fetch("/api/applications");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.applications && data.applications.length > 0) {
+            setApplications(data.applications);
+          }
+        }
+      } catch {
+        // Fall back to INITIAL_APPLICATIONS if error
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadApplications();
+  }, []);
 
   // Filtered applications
   const filteredApplications = useMemo(() => {
@@ -51,7 +72,7 @@ export function PipelineKanbanBoard() {
     });
   }, [applications, searchQuery, filterType]);
 
-  // Optimistic Move Stage
+  // Optimistic Move Stage with Database Sync
   const handleMoveStage = (id: string, newStage: PipelineStage) => {
     const targetApp = applications.find((a) => a.id === id);
     if (!targetApp) return;
@@ -79,6 +100,15 @@ export function PipelineKanbanBoard() {
     // Update selected app if open in drawer
     setSelectedApp((prev) => (prev?.id === id ? { ...prev, stage: newStage } : prev));
 
+    // Persist to database asynchronously
+    fetch(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage: newStage }),
+    }).catch((err) => {
+      console.error("Failed to sync stage change to server:", err);
+    });
+
     toast.success(`Moved to ${targetStageConfig?.label}`, {
       description: `${targetApp.company} (${targetApp.role}) updated.`,
       actions: [
@@ -88,6 +118,11 @@ export function PipelineKanbanBoard() {
             setApplications((prev) =>
               prev.map((app) => (app.id === id ? { ...app, stage: previousStage } : app))
             );
+            fetch(`/api/applications/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stage: previousStage }),
+            }).catch(() => {});
             toast.info("Action Undone", {
               description: `Returned ${targetApp.company} to ${
                 STAGES.find((s) => s.id === previousStage)?.label
@@ -99,30 +134,72 @@ export function PipelineKanbanBoard() {
     });
   };
 
-  // Add new opportunity
+  // Add new opportunity with Database Sync
   const handleAddOpportunity = (newApp: PipelineApplication) => {
     setApplications((prev) => [newApp, ...prev]);
+
+    // Persist to database
+    fetch("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newApp),
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data.application?.id) {
+            setApplications((prev) =>
+              prev.map((a) => (a.id === newApp.id ? data.application : a))
+            );
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to persist new application to database:", err);
+      });
   };
 
-  // Add note to application
+  // Add note to application with Database Sync
   const handleAddNote = (id: string, noteText: string) => {
     setApplications((prev) =>
       prev.map((app) => (app.id === id ? { ...app, notes: [noteText, ...app.notes] } : app))
     );
     setSelectedApp((prev) => (prev?.id === id ? { ...prev, notes: [noteText, ...prev.notes] } : prev));
+
+    fetch(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: noteText }),
+    }).catch((err) => {
+      console.error("Failed to sync note to database:", err);
+    });
   };
 
-  // Delete opportunity
+  // Delete opportunity with Database Sync
   const handleDelete = (id: string) => {
     const deleted = applications.find((a) => a.id === id);
     setApplications((prev) => prev.filter((a) => a.id !== id));
+
+    fetch(`/api/applications/${id}`, {
+      method: "DELETE",
+    }).catch((err) => {
+      console.error("Failed to delete application from server:", err);
+    });
+
     if (deleted) {
       toast.info("Opportunity Removed", {
         description: `${deleted.company} removed from pipeline.`,
         actions: [
           {
             label: "Restore",
-            onClick: () => setApplications((prev) => [deleted, ...prev]),
+            onClick: () => {
+              setApplications((prev) => [deleted, ...prev]);
+              fetch("/api/applications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(deleted),
+              }).catch(() => {});
+            },
           },
         ],
       });

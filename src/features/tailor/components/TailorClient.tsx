@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useEffect } from "react";
 import { Sparkle, ArrowLeft } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { TailorTargetJob, TailorSessionState } from "../types";
@@ -13,6 +13,7 @@ import {
 } from "@/services/ai/bulletRewriter";
 import type { CoverLetterTone } from "@/services/ai/coverLetterGenerator";
 import { auditAtsFormatting } from "@/services/parsing/formattingValidator";
+import type { ResumeParsedData } from "@/lib/validations/resume";
 
 interface TailorClientProps {
   initialJobId?: string;
@@ -25,7 +26,26 @@ export function TailorClient({ initialJobId }: TailorClientProps) {
       : "stripe-staff-systems"
   );
   const [tone, setTone] = useState<CoverLetterTone>("modern_tech");
+  const [candidateProfile, setCandidateProfile] = useState<ResumeParsedData>(SEED_MASTER_PROFILE);
   const [, startTransition] = useTransition();
+
+  // Load user's real saved resume on mount
+  useEffect(() => {
+    async function loadResume() {
+      try {
+        const res = await fetch("/api/resumes");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.resume?.parsedData && data.resume.parsedData.experience?.length > 0) {
+            setCandidateProfile(data.resume.parsedData);
+          }
+        }
+      } catch {
+        // Fall back to SEED_MASTER_PROFILE
+      }
+    }
+    loadResume();
+  }, []);
 
   const currentJob = TARGET_JOBS_CATALOG[selectedJobId] || TARGET_JOBS_CATALOG["stripe-staff-systems"];
 
@@ -34,7 +54,7 @@ export function TailorClient({ initialJobId }: TailorClientProps) {
     const decomposed = decomposeJobDescription(currentJob.description);
 
     // 3-pass rewrite for candidate experience
-    const tailoredRoles = SEED_MASTER_PROFILE.experience.map((role) => {
+    const tailoredRoles = candidateProfile.experience.map((role) => {
       const rewrittenBullets = role.bullets.map((b) =>
         rewriteBulletThreePass(b, decomposed)
       );

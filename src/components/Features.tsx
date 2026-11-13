@@ -283,8 +283,8 @@ export function Features() {
         <div ref={gridRef} className="grid grid-cols-1 lg:grid-cols-3 gap-7 sm:gap-8">
 
           {/* CARD 1 — Pastel Periwinkle Blue */}
-          <div
-            className="features-card group relative h-[470px] sm:h-[490px] rounded-[32px] overflow-hidden border border-[#CADBF0] bg-gradient-to-b from-[#BED4F2] via-[#C9DEF6] to-[#D8E7F9] p-6 pt-8 flex flex-col justify-between shadow-xs hover:shadow-xl hover:shadow-[#16213A]/8 hover:-translate-y-1.5 transition-all duration-400"
+          <div id="resume-tailor"
+            className="features-card group relative scroll-mt-28 h-[470px] sm:h-[490px] rounded-[32px] overflow-hidden border border-[#CADBF0] bg-gradient-to-b from-[#BED4F2] via-[#C9DEF6] to-[#D8E7F9] p-6 pt-8 flex flex-col justify-between shadow-xs hover:shadow-xl hover:shadow-[#16213A]/8 hover:-translate-y-1.5 transition-all duration-400"
           >
             {/* Seamless full-card cloud & color wash (no boundary lines) */}
             <div className="absolute inset-0 pointer-events-none select-none z-0 overflow-hidden">
@@ -315,8 +315,8 @@ export function Features() {
           </div>
 
           {/* CARD 2 — Sky Blue */}
-          <div
-            className="features-card group relative h-[470px] sm:h-[490px] rounded-[32px] overflow-hidden border border-[#BCE1F2] bg-gradient-to-b from-[#B4DCF5] via-[#C9E7F8] to-[#DEF1FC] p-6 pt-8 flex flex-col justify-between shadow-xs hover:shadow-xl hover:shadow-[#16213A]/8 hover:-translate-y-1.5 transition-all duration-400"
+          <div id="role-matching"
+            className="features-card group relative scroll-mt-28 h-[470px] sm:h-[490px] rounded-[32px] overflow-hidden border border-[#BCE1F2] bg-gradient-to-b from-[#B4DCF5] via-[#C9E7F8] to-[#DEF1FC] p-6 pt-8 flex flex-col justify-between shadow-xs hover:shadow-xl hover:shadow-[#16213A]/8 hover:-translate-y-1.5 transition-all duration-400"
           >
             {/* Seamless full-card cloud & color wash (no boundary lines) */}
             <div className="absolute inset-0 pointer-events-none select-none z-0 overflow-hidden">
@@ -347,8 +347,8 @@ export function Features() {
           </div>
 
           {/* CARD 3 — Pastel Mint/Sage Green */}
-          <div
-            className="features-card group relative h-[470px] sm:h-[490px] rounded-[32px] overflow-hidden border border-[#CDE5D4] bg-gradient-to-b from-[#CDECD6] via-[#D8F1DF] to-[#E5F7EB] p-6 pt-8 flex flex-col justify-between shadow-xs hover:shadow-xl hover:shadow-[#16213A]/8 hover:-translate-y-1.5 transition-all duration-400"
+          <div id="interview-prep"
+            className="features-card group relative scroll-mt-28 h-[470px] sm:h-[490px] rounded-[32px] overflow-hidden border border-[#CDE5D4] bg-gradient-to-b from-[#CDECD6] via-[#D8F1DF] to-[#E5F7EB] p-6 pt-8 flex flex-col justify-between shadow-xs hover:shadow-xl hover:shadow-[#16213A]/8 hover:-translate-y-1.5 transition-all duration-400"
           >
             {/* Seamless full-card cloud & color wash with prominent clouds rising above table */}
             <div className="absolute inset-0 pointer-events-none select-none z-0 overflow-hidden">
