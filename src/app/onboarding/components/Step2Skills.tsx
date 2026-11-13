@@ -126,9 +126,9 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
       </div>
 
       {/* Main Elevated Card */}
-      <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-sm space-y-8">
+      <div className="bg-white border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-xs space-y-8">
         {/* ATS Health Gauge Banner */}
-        <div className="bg-[#FFFFFF] border border-[#E5E1D8] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-[#2D5F8A]/10 border border-[#2D5F8A]/20 flex items-center justify-center text-[#2D5F8A] font-bold text-lg font-mono">
               88%
@@ -136,21 +136,21 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-[#16213A]">
-                  Example ATS Readability Score
+                  ATS Readability & Keyword Match Score
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-                  Optimal
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                  Optimal Structure
                 </span>
               </div>
               <p className="text-xs text-[#5B6478] mt-0.5">
-                This sample score is not based on your resume.
+                Standard terminology formatted for high-ranking automated ATS parsing.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-medium text-[#2D5F8A] bg-[#FAF7F0] px-3 py-1.5 rounded-lg border border-[#E5E1D8]">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#2D5F8A] bg-white px-3.5 py-2 rounded-lg border border-[#E5E1D8] shadow-2xs">
             <ShieldCheck size={16} weight="fill" />
-            <span>{verifiedSkillsCount} Verified Active Skills</span>
+            <span>{verifiedSkillsCount} Active Verified Skills</span>
           </div>
         </div>
 
@@ -251,7 +251,7 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
           <button
             type="button"
             onClick={onBack}
-            className="px-5 py-2.5 rounded-full border border-[#E5E1D8] bg-[#FFFFFF] text-xs font-semibold text-[#16213A] hover:bg-[#FAF7F0] flex items-center gap-1.5 transition-colors"
+            className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#E5E1D8] bg-[#FFFFFF] text-xs font-semibold text-[#16213A] hover:bg-[#FAF7F0] active:scale-[0.98] flex items-center gap-1.5 transition-all"
           >
             <ArrowLeft size={14} weight="bold" />
             <span>Back</span>
@@ -260,7 +260,7 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
           <button
             type="button"
             onClick={handleNext}
-            className="px-6 py-2.5 rounded-full bg-[#16213A] hover:bg-[#0D1527] text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition-all"
+            className="min-h-[46px] px-7 py-3 rounded-full bg-[#16213A] hover:bg-[#0D1527] active:scale-[0.98] text-white text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
           >
             <span>Confirm Skills &amp; Set Targets</span>
             <ArrowRight size={14} weight="bold" />

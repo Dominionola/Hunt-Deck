@@ -155,7 +155,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
       </div>
 
       {/* Main Elevated Card */}
-      <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-sm">
+      <div className="bg-white border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-xs">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* File Dropzone */}
           <div>
@@ -172,12 +172,12 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
               role="button"
               tabIndex={0}
               aria-label="Choose or replace resume file"
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+              className={`relative border-2 border-dashed rounded-xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200 ${
                 isDragging
-                  ? "border-[#2D5F8A] bg-[#2D5F8A]/5 scale-[1.01]"
+                  ? "border-[#2D5F8A] bg-[#2D5F8A]/8 scale-[1.01]"
                   : fileName
-                  ? "border-[#2D5F8A]/40 bg-[#FFFFFF]"
-                  : "border-[#E5E1D8] bg-[#FFFFFF] hover:border-[#2D5F8A]/50 hover:bg-[#FFFFFF]"
+                  ? "border-[#2D5F8A]/40 bg-[#FAF7F0]/40"
+                  : "border-[#E5E1D8] bg-[#FAF7F0]/30 hover:border-[#2D5F8A]/50 hover:bg-[#FAF7F0]/60"
               }`}
             >
               <input
@@ -302,10 +302,10 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
           )}
 
           {/* Privacy Guarantee Banner */}
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FFFFFF] border border-[#E5E1D8] text-xs text-[#5B6478]">
+          <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-[#FAF7F0] border border-[#E5E1D8] text-xs text-[#5B6478]">
             <Lock size={16} weight="fill" className="text-[#2D5F8A] shrink-0" />
             <span>
-              This preview stays in your browser and does not upload your resume.
+              Your resume is securely parsed and encrypted strictly for your personal job matches and application customizer.
             </span>
           </div>
 
@@ -314,7 +314,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
             <button
               type="button"
               onClick={handleScratchMode}
-              className="text-xs text-[#5B6478] hover:text-[#16213A] transition-colors order-2 sm:order-1 font-medium"
+              className="text-xs text-[#5B6478] hover:text-[#16213A] transition-colors order-2 sm:order-1 font-medium min-h-[44px] px-2 flex items-center"
             >
               I don&apos;t have a resume right now &mdash; start from scratch &rarr;
             </button>
@@ -322,7 +322,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
             <button
               type="submit"
               disabled={(!selectedFile && !resumeFileId) || isProcessing}
-              className={`w-full sm:w-auto px-6 py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all order-1 sm:order-2 ${
+              className={`w-full sm:w-auto min-h-[46px] px-8 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all order-1 sm:order-2 active:scale-[0.98] ${
                 (!selectedFile && !resumeFileId) || isProcessing
                   ? "bg-[#E5E1D8] text-[#5B6478] cursor-not-allowed"
                   : "bg-[#16213A] hover:bg-[#0D1527] text-white shadow-sm hover:shadow"
@@ -330,13 +330,13 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
             >
               {isProcessing ? (
                 <>
-                  <SpinnerGap size={16} className="animate-spin" />
-                  <span>Preparing preview...</span>
+                  <SpinnerGap size={18} className="animate-spin" />
+                  <span>Extracting Skills...</span>
                 </>
               ) : (
                 <>
                   <Sparkle size={16} weight="fill" />
-                  <span>Continue &rarr;</span>
+                  <span>Verify Skills &rarr;</span>
                 </>
               )}
             </button>

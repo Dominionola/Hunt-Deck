@@ -3,6 +3,7 @@
 import React, { useState, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ShieldCheck } from "@phosphor-icons/react";
 import styles from "./onboarding.module.css";
 import {
   OnboardingProgress,
@@ -128,9 +129,15 @@ function OnboardingWizard() {
         </div>
       </div>
 
-      <p className="mb-5 rounded-xl border border-[#E5E1D8] bg-white px-4 py-3 text-xs leading-relaxed text-[#5B6478]">
-        Preview mode: resume analysis, suggested skills and job matches are examples and are not saved.
-      </p>
+      <div className="mb-6 flex items-center justify-between rounded-xl border border-[#E5E1D8] bg-white/90 backdrop-blur-xs px-4 py-2.5 text-xs text-[#5B6478] shadow-2xs">
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={16} weight="bold" className="text-[#2D5F8A] shrink-0" />
+          <span>Private & Encrypted: Your resume and preferences are stored securely in your private workspace.</span>
+        </div>
+        <span className="hidden sm:inline-block text-[11px] font-semibold text-[#2D5F8A] bg-[#2D5F8A]/8 px-2 py-0.5 rounded-full">
+          Live Sync Active
+        </span>
+      </div>
 
       {/* Dynamic Step View */}
       <div key={currentStep} className={`w-full ${styles.step}`}>

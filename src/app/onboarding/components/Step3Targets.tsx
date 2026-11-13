@@ -123,7 +123,7 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
       </div>
 
       {/* Main Elevated Card */}
-      <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-sm space-y-8">
+      <div className="bg-white border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-xs space-y-8">
         {/* Target Titles Selector */}
         <div className="space-y-3">
           <label className="block text-xs font-semibold uppercase tracking-wider text-[#16213A]">
@@ -137,10 +137,10 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
                   key={title}
                   type="button"
                   onClick={() => handleToggleTitle(title)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-all ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-all active:scale-[0.98] min-h-[38px] ${
                     isSelected
                       ? "bg-[#16213A] text-white shadow-xs"
-                      : "bg-[#FFFFFF] border border-[#E5E1D8] text-[#5B6478] hover:border-[#2D5F8A]/40"
+                      : "bg-[#FAF7F0]/60 border border-[#E5E1D8] text-[#5B6478] hover:border-[#2D5F8A]/40 hover:text-[#16213A]"
                   }`}
                 >
                   {title}
@@ -154,13 +154,13 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
               .map((title) => (
                 <div
                   key={title}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2D5F8A] text-white text-xs font-medium"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2D5F8A] text-white text-xs font-medium min-h-[38px]"
                 >
                   <span>{title}</span>
                   <button
                     type="button"
                     onClick={() => handleToggleTitle(title)}
-                    className="hover:opacity-80"
+                    className="hover:opacity-80 p-0.5"
                   >
                     <X size={12} weight="bold" />
                   </button>
@@ -175,12 +175,12 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
               value={customTitleInput}
               onChange={(e) => setCustomTitleInput(e.target.value)}
               placeholder="Add another title (e.g. Solutions Architect)..."
-              className="flex-1 max-w-sm px-3.5 py-2 text-xs bg-[#FFFFFF] border border-[#E5E1D8] rounded-xl text-[#16213A] placeholder-[#5B6478]/50 focus:outline-none focus:border-[#2D5F8A]"
+              className="flex-1 max-w-sm px-3.5 py-2.5 text-xs bg-[#FAF7F0]/60 border border-[#E5E1D8] rounded-xl text-[#16213A] placeholder-[#5B6478]/50 focus:outline-none focus:border-[#2D5F8A] focus:bg-white min-h-[42px] transition-all"
             />
             <button
               type="submit"
               disabled={!customTitleInput.trim()}
-              className="px-3 py-2 bg-[#FAF7F0] border border-[#E5E1D8] hover:border-[#2D5F8A] disabled:opacity-40 text-xs font-medium rounded-xl text-[#16213A] flex items-center gap-1"
+              className="px-4 py-2 bg-[#FAF7F0] border border-[#E5E1D8] hover:border-[#2D5F8A] disabled:opacity-40 text-xs font-semibold rounded-xl text-[#16213A] flex items-center gap-1 min-h-[42px] active:scale-[0.98] transition-all"
             >
               <Plus size={13} weight="bold" />
               <span>Add</span>
@@ -195,41 +195,41 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#16213A]">
               Work Arrangement
             </label>
-            <div className="grid grid-cols-3 gap-2 bg-[#FFFFFF] p-1.5 rounded-xl border border-[#E5E1D8]">
+            <div className="grid grid-cols-3 gap-2 bg-[#FAF7F0] p-1.5 rounded-2xl border border-[#E5E1D8]">
               <button
                 type="button"
                 onClick={() => setWorkArrangement("REMOTE")}
-                className={`py-2 px-2 text-xs font-medium rounded-lg flex flex-col items-center gap-1 transition-all ${
+                className={`py-2.5 px-2 text-xs font-semibold rounded-xl flex flex-col items-center gap-1 transition-all active:scale-[0.98] ${
                   workArrangement === "REMOTE"
                     ? "bg-[#16213A] text-white shadow-xs"
                     : "text-[#5B6478] hover:text-[#16213A]"
                 }`}
               >
-                <Globe size={16} />
+                <Globe size={18} />
                 <span>Remote</span>
               </button>
               <button
                 type="button"
                 onClick={() => setWorkArrangement("HYBRID")}
-                className={`py-2 px-2 text-xs font-medium rounded-lg flex flex-col items-center gap-1 transition-all ${
+                className={`py-2.5 px-2 text-xs font-semibold rounded-xl flex flex-col items-center gap-1 transition-all active:scale-[0.98] ${
                   workArrangement === "HYBRID"
                     ? "bg-[#16213A] text-white shadow-xs"
                     : "text-[#5B6478] hover:text-[#16213A]"
                 }`}
               >
-                <House size={16} />
+                <House size={18} />
                 <span>Hybrid</span>
               </button>
               <button
                 type="button"
                 onClick={() => setWorkArrangement("ONSITE")}
-                className={`py-2 px-2 text-xs font-medium rounded-lg flex flex-col items-center gap-1 transition-all ${
+                className={`py-2.5 px-2 text-xs font-semibold rounded-xl flex flex-col items-center gap-1 transition-all active:scale-[0.98] ${
                   workArrangement === "ONSITE"
                     ? "bg-[#16213A] text-white shadow-xs"
                     : "text-[#5B6478] hover:text-[#16213A]"
                 }`}
               >
-                <Buildings size={16} />
+                <Buildings size={18} />
                 <span>On-Site</span>
               </button>
             </div>
@@ -246,10 +246,10 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
                   key={tier.id}
                   type="button"
                   onClick={() => setSeniorityLevel(tier.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] min-h-[38px] ${
                     seniorityLevel === tier.id
-                      ? "bg-[#2D5F8A] text-white"
-                      : "bg-[#FFFFFF] border border-[#E5E1D8] text-[#5B6478] hover:border-[#2D5F8A]/40"
+                      ? "bg-[#2D5F8A] text-white shadow-xs"
+                      : "bg-[#FAF7F0]/60 border border-[#E5E1D8] text-[#5B6478] hover:border-[#2D5F8A]/40"
                   }`}
                 >
                   {tier.label}
@@ -265,7 +265,7 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
             <label className="text-xs font-semibold uppercase tracking-wider text-[#16213A]">
               Minimum Annual Compensation Floor
             </label>
-            <span className="text-base font-bold font-mono text-[#2D5F8A]">
+            <span className="text-lg font-bold font-mono text-[#2D5F8A] tabular-nums">
               {formatCurrency(minSalary)} / yr
             </span>
           </div>
@@ -281,9 +281,9 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
           />
 
           <div className="flex items-center justify-between text-[11px] text-[#5B6478]">
-            <span>$80k floor</span>
+            <span className="tabular-nums font-medium">$80k floor</span>
             <span className="italic">Hunt Deck discards roles paying below this threshold</span>
-            <span>$350k+</span>
+            <span className="tabular-nums font-medium">$350k+</span>
           </div>
         </div>
 
@@ -300,7 +300,7 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
           <button
             type="button"
             onClick={onBack}
-            className="px-5 py-2.5 rounded-full border border-[#E5E1D8] bg-[#FFFFFF] text-xs font-semibold text-[#16213A] hover:bg-[#FAF7F0] flex items-center gap-1.5 transition-colors"
+            className="min-h-[44px] px-5 py-2.5 rounded-full border border-[#E5E1D8] bg-[#FFFFFF] text-xs font-semibold text-[#16213A] hover:bg-[#FAF7F0] active:scale-[0.98] flex items-center gap-1.5 transition-all"
           >
             <ArrowLeft size={14} weight="bold" />
             <span>Back</span>
@@ -309,7 +309,7 @@ export function Step3Targets({ initialData, onBack, onComplete }: Step3TargetsPr
           <button
             type="button"
             onClick={handleNext}
-            className="px-6 py-2.5 rounded-full bg-[#16213A] hover:bg-[#0D1527] text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition-all"
+            className="min-h-[46px] px-7 py-3 rounded-full bg-[#16213A] hover:bg-[#0D1527] active:scale-[0.98] text-white text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
           >
             <Sparkle size={15} weight="fill" />
             <span>Find Matching Opportunities</span>

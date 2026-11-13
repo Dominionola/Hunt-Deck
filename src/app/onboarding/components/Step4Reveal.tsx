@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  Sparkle,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
@@ -155,11 +154,6 @@ export function Step4Reveal({
     <div className="w-full">
       {/* Celebratory Editorial Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2D5F8A]/10 border border-[#2D5F8A]/20 text-xs font-semibold text-[#2D5F8A] mb-3">
-          <Sparkle size={14} weight="fill" />
-          <span>Live Fit Engine Reveal</span>
-        </div>
-
         <h1 className="text-2xl sm:text-3xl font-semibold text-[#16213A] tracking-tight mb-2">
           Your tailored match radar,{" "}
           <span className="font-serif italic font-normal text-[#2D5F8A]">
@@ -168,7 +162,7 @@ export function Step4Reveal({
         </h1>
         <p className="text-sm text-[#5B6478] max-w-lg mx-auto">
           These top roles match your verified competencies and meet your{" "}
-          <strong className="text-[#16213A]">{formatCurrency(minSalary)}+</strong>{" "}
+          <strong className="text-[#16213A] tabular-nums font-mono">{formatCurrency(minSalary)}+</strong>{" "}
           {workArrangement.toLowerCase()} preference.
         </p>
       </div>
@@ -181,23 +175,27 @@ export function Step4Reveal({
           return (
             <div
               key={job.id}
-              className="bg-[#FAF7F0] border border-[#E5E1D8] hover:border-[#2D5F8A]/40 transition-all rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5"
+              className={`bg-white border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5 transition-all ${
+                isPreviewing
+                  ? "border-[#2D5F8A] ring-1 ring-[#2D5F8A]/20"
+                  : "border-[#E5E1D8] hover:border-[#2D5F8A]/40"
+              }`}
             >
               <div className="space-y-2.5 flex-1">
                 {/* Meta row */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFFFFF] border border-[#E5E1D8] text-[11px] font-semibold text-[#16213A]">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FAF7F0] border border-[#E5E1D8] text-[11px] font-semibold text-[#16213A]">
                     {job.companyName}
                   </span>
                   <span className="text-xs text-[#5B6478] flex items-center gap-1">
                     <MapPin size={13} />
                     {job.location}
                   </span>
-                  <span className="text-xs text-[#5B6478] flex items-center gap-1 font-mono">
+                  <span className="text-xs text-[#5B6478] flex items-center gap-1 font-mono tabular-nums">
                     <CurrencyDollar size={13} />
                     {job.compensationRange}
                   </span>
-                  <span className="text-[10px] text-[#5B6478]/70 px-1.5 py-0.5 rounded bg-[#FFFFFF] border border-[#E5E1D8]">
+                  <span className="text-[10px] text-[#5B6478] px-1.5 py-0.5 rounded bg-[#FAF7F0] border border-[#E5E1D8]">
                     {job.atsSource}
                   </span>
                 </div>
@@ -224,7 +222,7 @@ export function Step4Reveal({
 
               {/* Score & Action Column with Apple HIG 44px touch target */}
               <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#E5E1D8]">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#16213A] text-white text-xs font-semibold font-mono shadow-xs">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#16213A] text-white text-xs font-semibold font-mono tabular-nums shadow-xs">
                   <ShieldCheck size={14} weight="fill" className="text-[#2D5F8A]" />
                   <span>{job.fitScore}% Fit Score</span>
                 </div>
@@ -232,7 +230,7 @@ export function Step4Reveal({
                 <button
                   type="button"
                   onClick={() => setPreviewedId(isPreviewing ? null : job.id)}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[#E5E1D8] bg-[#FFFFFF] hover:border-[#2D5F8A] text-xs font-semibold text-[#16213A] flex items-center gap-1.5 transition-all active:scale-[0.98]"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[#E5E1D8] bg-[#FAF7F0] hover:bg-white hover:border-[#2D5F8A] text-xs font-semibold text-[#16213A] flex items-center gap-1.5 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5F8A]"
                 >
                   <Eye size={15} />
                   <span>{isPreviewing ? "Opportunity Selected" : "Inspect Match"}</span>
@@ -244,13 +242,13 @@ export function Step4Reveal({
       </div>
 
       {/* Primary Launch Action Box */}
-      <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 text-center space-y-4 shadow-sm">
+      <div className="bg-white border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 text-center space-y-4 shadow-xs">
         <div className="max-w-md mx-auto">
           <button
             type="button"
             disabled={isSubmitting}
             onClick={onEnterDashboard}
-            className="w-full sm:w-auto min-h-[44px] px-8 py-3.5 rounded-full bg-[#16213A] hover:bg-[#0D1527] disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2.5 mx-auto shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+            className="w-full sm:w-auto min-h-[44px] px-8 py-3.5 rounded-full bg-[#16213A] hover:bg-[#0D1527] disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2.5 mx-auto shadow-xs hover:shadow-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5F8A]"
           >
             {isSubmitting ? (
               <>
@@ -273,7 +271,7 @@ export function Step4Reveal({
           <button
             type="button"
             onClick={onBack}
-            className="min-h-[44px] px-3 text-xs text-[#5B6478] hover:text-[#16213A] flex items-center gap-1 transition-colors active:scale-[0.98]"
+            className="min-h-[44px] px-4 text-xs font-medium text-[#5B6478] hover:text-[#16213A] flex items-center gap-1.5 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5F8A]"
           >
             <ArrowLeft size={13} />
             <span>Recalibrate Career Targets</span>
