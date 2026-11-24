@@ -10,7 +10,7 @@ import {
 } from "@/services/ai/bulletRewriter";
 import { generateTailoredCoverLetter, type CoverLetterTone } from "@/services/ai/coverLetterGenerator";
 import { auditAtsFormatting } from "@/services/parsing/formattingValidator";
-import type { ResumeParsedData } from "@/lib/validations/resume";
+import { resumeParsedDataSchema, type ResumeParsedData } from "@/lib/validations/resume";
 import { z } from "zod";
 
 const generateTailorSchema = z.object({
@@ -19,30 +19,8 @@ const generateTailorSchema = z.object({
   jobDescription: z.string().min(10, "Job description is required"),
   tone: z.enum(["executive", "warm", "modern_tech"]).default("modern_tech"),
   applicationId: z.string().optional(),
-  candidateProfile: z.custom<ResumeParsedData>().optional(),
+  candidateProfile: resumeParsedDataSchema.optional(),
 });
-
-const DEFAULT_FALLBACK_PROFILE: ResumeParsedData = {
-  fullName: "Candidate",
-  email: "candidate@example.com",
-  summary: "Experienced software engineer specializing in scalable distributed web systems.",
-  skills: ["TypeScript", "React", "Next.js", "Node.js", "PostgreSQL", "AWS"],
-  experience: [
-    {
-      company: "Technology Corp",
-      title: "Senior Software Engineer",
-      startDate: "2021",
-      isCurrent: true,
-      bullets: [
-        "Architected high-throughput cloud microservices handling 10,000+ requests per second with 99.99% availability.",
-        "Refactored relational database queries and introduced Redis caching, slashing p99 latency by 45%.",
-        "Streamlined automated CI/CD deployment pipelines using Docker, reducing release cycle time from 1 hour to 12 minutes.",
-      ],
-    },
-  ],
-  education: [],
-  projects: [],
-};
 
 export async function POST(request: Request) {
   // 1. Authenticate user
@@ -79,14 +57,13 @@ export async function POST(request: Request) {
       }
 
       if (resumeRecord && resumeRecord.parsedData) {
-        candidate = resumeRecord.parsedData as unknown as ResumeParsedData;
+        candidate = resumeParsedDataSchema.parse(resumeRecord.parsedData);
         resumeId = resumeRecord.id;
       } else {
-        candidate = {
-          ...DEFAULT_FALLBACK_PROFILE,
-          fullName: user.name || "Candidate",
-          email: user.email,
-        };
+        return NextResponse.json(
+          { error: "Add a resume before generating tailored materials." },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
       }
     }
 
@@ -192,8 +169,8 @@ export async function POST(request: Request) {
       },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to generate tailored application pack.";
+  } catch {
+    const msg = "Failed to generate tailored application pack.";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

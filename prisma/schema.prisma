@@ -99,7 +99,12 @@ model Resume {
   originalFileUrl String
   extractedText   String         @db.Text
   parsedData      Json           // Structured skills, experience, education, projects
-  embedding       Unsupported("vector(1536)")?
+  embedding       Unsupported("vector(1536)")? // Legacy 1536-dim vector
+  embedding1024   Unsupported("vector(1024)")? // Cloudflare Workers AI @cf/baai/bge-m3
+  embeddingModel  String?        @db.VarChar(100) // Model identifier
+  embeddingVersion String?       @db.VarChar(50)  // Model version
+  contentHash     String?        @db.VarChar(64)  // SHA-256 hash of normalized text
+  embeddedAt      DateTime?      @db.Timestamptz(6)
   atsScore        Int?
   isPrimary       Boolean        @default(false)
   createdAt       DateTime       @default(now())
@@ -109,6 +114,7 @@ model Resume {
   applications    Application[]
   fitScores       JobFitScore[]
 
+  @@index([contentHash, embeddingModel, embeddingVersion], map: "idx_resumes_content_hash")
   @@map("resumes")
 }
 
@@ -128,7 +134,12 @@ model JobPosting {
   atsPlatform    AtsPlatform    @default(OTHER)
   applicationUrl String
   externalJobId  String?
-  embedding      Unsupported("vector(1536)")?
+  embedding      Unsupported("vector(1536)")? // Legacy 1536-dim vector
+  embedding1024  Unsupported("vector(1024)")? // Cloudflare Workers AI @cf/baai/bge-m3
+  embeddingModel String?         @db.VarChar(100) // Model identifier
+  embeddingVersion String?       @db.VarChar(50)  // Model version
+  contentHash    String?         @db.VarChar(64)  // SHA-256 hash of normalized text
+  embeddedAt     DateTime?       @db.Timestamptz(6)
   postedAt       DateTime       @default(now())
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -139,6 +150,7 @@ model JobPosting {
   applications   Application[]
 
   @@unique([company, title, applicationUrl])
+  @@index([contentHash, embeddingModel, embeddingVersion], map: "idx_jobs_content_hash")
   @@map("job_postings")
 }
 

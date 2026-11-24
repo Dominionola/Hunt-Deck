@@ -1,28 +1,58 @@
 import OpenAI from "openai";
+import {
+  generateCloudflareEmbedding,
+  generateMockBgeM3Embedding,
+  safeCosineSimilarity,
+  CLOUDFLARE_BGE_M3_MODEL,
+  CLOUDFLARE_BGE_M3_VERSION,
+  CLOUDFLARE_BGE_M3_DIMENSIONS,
+  type TypedEmbedding,
+} from "./cloudflareEmbeddingService";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "dummy-key",
-});
+export {
+  generateCloudflareEmbedding,
+  generateMockBgeM3Embedding,
+  safeCosineSimilarity,
+  CLOUDFLARE_BGE_M3_MODEL,
+  CLOUDFLARE_BGE_M3_VERSION,
+  CLOUDFLARE_BGE_M3_DIMENSIONS,
+  type TypedEmbedding,
+};
 
-export const EMBEDDING_MODEL = "text-embedding-3-large";
-export const EMBEDDING_DIMENSIONS = 1536;
+// Legacy 1536-dimensional constants
+export const LEGACY_EMBEDDING_MODEL = "text-embedding-3-large";
+export const LEGACY_EMBEDDING_DIMENSIONS = 1536;
+
+export const EMBEDDING_MODEL = CLOUDFLARE_BGE_M3_MODEL;
+export const EMBEDDING_DIMENSIONS = CLOUDFLARE_BGE_M3_DIMENSIONS;
 
 /**
  * Generates 1536-dimensional vector embedding for a single text string
  * using OpenAI text-embedding-3-large.
+ * Primary dense embedding generator using Cloudflare Workers AI @cf/baai/bge-m3 (1024-dim).
+ * Embeds both candidate resume and job posting text with the same model and version.
+ */
+export async function generateCandidateOrJobEmbedding(text: string): Promise<TypedEmbedding> {
+  return generateCloudflareEmbedding(text);
+}
+
+/**
+ * Legacy 1536-dimensional vector embedding generator (OpenAI text-embedding-3-large).
+ * Retained for backward compatibility and migration backfills.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   const sanitizedText = text.replace(/\n+/g, " ").trim().slice(0, 8000);
 
   if (!process.env.OPENAI_API_KEY) {
     // Generate deterministic 1536-dim mock vector for local development/testing
-    return generateMockEmbedding(sanitizedText, EMBEDDING_DIMENSIONS);
+    return generateMockEmbedding(sanitizedText, LEGACY_EMBEDDING_DIMENSIONS);
   }
 
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const response = await openai.embeddings.create({
-    model: EMBEDDING_MODEL,
+    model: LEGACY_EMBEDDING_MODEL,
     input: sanitizedText,
-    dimensions: EMBEDDING_DIMENSIONS,
+    dimensions: LEGACY_EMBEDDING_DIMENSIONS,
   });
 
   return response.data[0].embedding;
@@ -31,6 +61,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 /**
  * Computes cosine similarity between two float vectors.
  * Returns a value between -1.0 and 1.0 (typically 0.0 to 1.0 for embeddings).
+ * Computes cosine similarity between two float vectors of the same length.
+ * Note: Use safeCosineSimilarity when comparing TypedEmbeddings to enforce model isolation.
  */
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   if (vecA.length !== vecB.length || vecA.length === 0) {

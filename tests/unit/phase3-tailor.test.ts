@@ -1,4 +1,4 @@
-import { test, describe } from "node:test";
+import { test, describe, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 
 import {
@@ -29,6 +29,26 @@ import {
 } from "../../src/services/ai/coverLetterGenerator";
 
 import type { ResumeParsedData } from "../../src/lib/validations/resume";
+
+function mockGeminiProvider(context: TestContext) {
+  const previous = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = "synthetic-provider-key";
+  context.after(() => {
+    if (previous === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previous;
+  });
+  context.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    assert.match(String(input), /^https:\/\/generativelanguage\.googleapis\.com\//);
+    const body = JSON.parse(String(init?.body)) as { contents: Array<{ parts: Array<{ text: string }> }> };
+    const prompt = body.contents[0].parts[0].text;
+    const company = /Target Company: (.+)/.exec(prompt)?.[1];
+    const tone = /Tone Calibration: (.+)/.exec(prompt)?.[1];
+    assert.ok(company && tone);
+    const filler = "This paragraph is synthetic provider output for composition testing only. ".repeat(5);
+    const paragraphs = { hook: `${company} ${tone}: ${filler}`, evidence: filler, connection: filler, close: filler };
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(paragraphs) }] } }], modelVersion: "synthetic-provider-version" });
+  });
+}
 
 const MOCK_PROFILE: ResumeParsedData = {
   fullName: "Elena Rostova",
@@ -278,7 +298,8 @@ B.S. in Computer Science — Columbia University (2018)
       assert.ok(brief.engineeringCultureValues.length > 0);
     });
 
-    test("should generate 4 distinct paragraphs conforming to Hook, Evidence, Connection, and Close", async () => {
+    test("should generate 4 distinct paragraphs conforming to Hook, Evidence, Connection, and Close", async (context) => {
+      mockGeminiProvider(context);
       const letter = await generateTailoredCoverLetter(
         MOCK_PROFILE,
         "Vercel",
@@ -305,7 +326,8 @@ B.S. in Computer Science — Columbia University (2018)
       assert.ok(letter.paragraphs.hook.includes("Vercel") || letter.paragraphs.hook.includes(letter.verifiedFactUsed));
     });
 
-    test("supports executive, warm, and modern_tech tone calibrations", async () => {
+    test("supports executive, warm, and modern_tech tone calibrations", async (context) => {
+      mockGeminiProvider(context);
       const execLetter = await generateTailoredCoverLetter(
         MOCK_PROFILE,
         "Stripe",
@@ -325,6 +347,9 @@ B.S. in Computer Science — Columbia University (2018)
       assert.notStrictEqual(execLetter.paragraphs.hook, warmLetter.paragraphs.hook);
       assert.strictEqual(execLetter.tone, "executive");
       assert.strictEqual(warmLetter.tone, "warm");
+      const modernLetter = await generateTailoredCoverLetter(MOCK_PROFILE, "Stripe", "Staff Systems Engineer", SAMPLE_JD, "modern_tech");
+      assert.strictEqual(modernLetter.tone, "modern_tech");
+      assert.notStrictEqual(modernLetter.paragraphs.hook, warmLetter.paragraphs.hook);
     });
   });
 });

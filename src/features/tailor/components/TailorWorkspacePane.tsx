@@ -56,17 +56,19 @@ export function TailorWorkspacePane({
   const handleDownloadAts = async (format: "html" | "text" = "html") => {
     setIsExporting(true);
     try {
+      const profile = session.candidateProfile || session.masterProfile;
+      const targetJob = session.targetJob || session.job;
       const res = await fetch("/api/tailor/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: session.masterProfile.fullName,
-          email: session.masterProfile.email,
-          phone: session.masterProfile.phone,
-          location: session.masterProfile.location,
-          summary: session.masterProfile.summary,
-          targetRoleTitle: session.job.title,
-          skills: session.masterProfile.skills,
+          fullName: profile.fullName,
+          email: profile.email,
+          phone: profile.phone,
+          location: profile.location,
+          summary: profile.summary,
+          targetRoleTitle: targetJob.title,
+          skills: profile.skills,
           tailoredRoles: session.tailoredRoles,
           format,
         }),
@@ -78,7 +80,7 @@ export function TailorWorkspacePane({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${session.masterProfile.fullName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-ats-resume.${format}`;
+      a.download = `${profile.fullName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-ats-resume.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();

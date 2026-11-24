@@ -23,7 +23,9 @@ export interface TailorTargetJob {
 
 export interface TailorSessionState {
   job: TailorTargetJob;
+  targetJob?: TailorTargetJob;
   masterProfile: ResumeParsedData;
+  candidateProfile?: ResumeParsedData;
   decomposedJd: JDDecomposition;
   tailoredRoles: TailoredRoleExperience[];
   coverLetter: {
