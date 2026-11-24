@@ -1,38 +1,23 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { redis } from "@/lib/redis";
+import { checkServiceHealth } from "@/lib/serviceHealth";
+import { getResumeQueue } from "@/services/queue/resumeQueue";
 
 export async function GET() {
   const timestamp = new Date().toISOString();
-  let dbStatus = "unknown";
-  let redisStatus = "unknown";
-
-  try {
-    // Check PostgreSQL connection
-    await db.$queryRaw`SELECT 1`;
-    dbStatus = "connected";
-  } catch (error) {
-    dbStatus = `disconnected (${(error as Error).message})`;
-  }
-
-  try {
-    // Check Redis connection
-    if (redis.status === "ready") {
-      redisStatus = "connected";
-    } else {
-      redisStatus = `offline (status: ${redis.status})`;
-    }
-  } catch {
-    redisStatus = "offline";
-  }
+  const health = await checkServiceHealth({
+    database: () => db.$queryRaw`SELECT 1`,
+    // Probe the configured queue connection rather than an unused lazy cache.
+    redis: () => getResumeQueue().getJobCounts("wait", "active"),
+  });
 
   return NextResponse.json({
-    status: dbStatus === "connected" ? "healthy" : "degraded",
+    status: health.healthy ? "healthy" : "degraded",
     environment: process.env.NODE_ENV,
     timestamp,
     services: {
-      database: dbStatus,
-      redis: redisStatus,
+      database: health.database,
+      redis: health.redis,
     },
-  });
+  }, { status: health.healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }
