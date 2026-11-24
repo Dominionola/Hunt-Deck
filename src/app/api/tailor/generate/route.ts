@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       });
 
       if (existingApp) {
-        let meta: Record<string, any> = {};
+        let meta: Record<string, unknown> = {};
         if (existingApp.interviewNotes) {
           try {
             meta = JSON.parse(existingApp.interviewNotes);

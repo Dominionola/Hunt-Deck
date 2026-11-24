@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { UploadResumeInput } from "@/lib/validations/resume";
 
 export async function createResume(userId: string, input: UploadResumeInput) {
@@ -60,7 +61,7 @@ export async function updateResumeParsedData(
       userId,
     },
     data: {
-      parsedData: parsedData as any,
+      parsedData: parsedData as Prisma.InputJsonObject,
     },
   });
 }

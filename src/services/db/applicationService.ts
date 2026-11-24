@@ -6,6 +6,11 @@ import type {
 import type { PipelineApplication, PipelineStage } from "@/features/applications/types";
 import { ApplicationStatus, RemotePreference, AtsPlatform } from "@prisma/client";
 
+type PipelineMetadata = Partial<Pick<PipelineApplication,
+  "stage" | "workArrangement" | "salary" | "fitScore" | "followUpDueDate" |
+  "interviewDate" | "contact" | "notes" | "tags" | "portalUrl" | "source"
+>>;
+
 export function mapStageToStatus(stage: PipelineStage): ApplicationStatus {
   switch (stage) {
     case "saved":
@@ -39,7 +44,7 @@ export function toPipelineApplication(app: {
     atsPlatform: AtsPlatform;
   };
 }): PipelineApplication {
-  let meta: Record<string, any> = {};
+  let meta: PipelineMetadata = {};
   if (app.interviewNotes) {
     try {
       meta = JSON.parse(app.interviewNotes);
@@ -134,7 +139,7 @@ export async function getUserPipelineApplications(userId: string): Promise<Pipel
     orderBy: { updatedAt: "desc" },
   });
 
-  return apps.map((app) => toPipelineApplication(app as any));
+  return apps.map((app) => toPipelineApplication(app));
 }
 
 export interface PipelineOpportunityInput {
@@ -273,7 +278,7 @@ export async function createOrUpsertPipelineOpportunity(
     },
   });
 
-  return toPipelineApplication(app as any);
+  return toPipelineApplication(app);
 }
 
 export async function updateApplicationStatus(
@@ -313,7 +318,7 @@ export async function updatePipelineStage(
     throw new Error("Application not found or unauthorized.");
   }
 
-  let meta: Record<string, any> = {};
+  let meta: PipelineMetadata = {};
   if (existing.interviewNotes) {
     try {
       meta = JSON.parse(existing.interviewNotes);
@@ -341,7 +346,7 @@ export async function updatePipelineStage(
     },
   });
 
-  return toPipelineApplication(updated as any);
+  return toPipelineApplication(updated);
 }
 
 export async function addApplicationNote(
@@ -358,7 +363,7 @@ export async function addApplicationNote(
     throw new Error("Application not found or unauthorized.");
   }
 
-  let meta: Record<string, any> = {};
+  let meta: PipelineMetadata = {};
   if (existing.interviewNotes) {
     try {
       meta = JSON.parse(existing.interviewNotes);
@@ -379,7 +384,7 @@ export async function addApplicationNote(
     },
   });
 
-  return toPipelineApplication(updated as any);
+  return toPipelineApplication(updated);
 }
 
 export async function deleteApplication(

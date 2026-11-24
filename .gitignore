@@ -5,6 +5,7 @@
 
 # testing
 /coverage
+/.local-services/
 
 # next.js
 /.next/
@@ -84,3 +85,4 @@ RULES.md
 PRD.md
 pipelines/
 .cursor/
+floorplan/
