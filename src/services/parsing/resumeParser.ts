@@ -23,7 +23,9 @@ export function normalizeExtractedText(raw: string): string {
  * Extracts plain text and layout metadata from a PDF buffer.
  */
 export async function parsePdfBuffer(buffer: Buffer | Uint8Array): Promise<ParsedResumeDocument> {
-  const { text, totalPages } = await extractText(buffer, { mergePages: true });
+  // PDF.js rejects Node Buffer instances. Copy to a plain typed array so its
+  // worker can also transfer the bytes without detaching the caller's buffer.
+  const { text, totalPages } = await extractText(new Uint8Array(buffer), { mergePages: true });
 
   const normalized = normalizeExtractedText(Array.isArray(text) ? text.join("\n") : (text || ""));
 

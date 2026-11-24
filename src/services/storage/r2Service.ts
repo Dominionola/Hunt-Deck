@@ -5,6 +5,7 @@ import path from "path";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { validatePdfUpload } from "../../lib/validations/upload";
+import { createHash } from "crypto";
 
 function getR2Client(): S3Client | null {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
@@ -20,6 +21,36 @@ function getR2Client(): S3Client | null {
       secretAccessKey: R2_SECRET_ACCESS_KEY,
     },
   });
+}
+
+/** Store a validated upload in shared private storage for the worker. */
+export async function stageResumeForWorker(userId: string, fileName: string, fileBuffer: Buffer): Promise<string> {
+  if (!/^[a-zA-Z0-9_-]+$/.test(userId) || !validatePdfUpload({ name: fileName, type: "application/pdf", size: fileBuffer.length }, fileBuffer)) {
+    throw new Error("Invalid resume upload.");
+  }
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!client || !bucket || process.env.R2_PUBLIC_URL) throw new Error("Private shared resume storage is not configured.");
+  const hash = createHash("sha256").update(fileBuffer).digest("hex");
+  const key = `resumes/${userId}/${hash}.pdf`;
+  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: fileBuffer, ContentType: "application/pdf" }));
+  return key;
+}
+
+export async function readStagedResume(userId: string, key: string): Promise<Buffer> {
+  if (!/^[a-zA-Z0-9_-]+$/.test(userId) || !key.startsWith(`resumes/${userId}/`) || !/^resumes\/[a-zA-Z0-9_-]+\/[a-f0-9]{64}\.pdf$/.test(key)) {
+    throw new Error("Invalid resume storage reference.");
+  }
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!client || !bucket || process.env.R2_PUBLIC_URL) throw new Error("Private shared resume storage is not configured.");
+  const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  if (!result.Body || (result.ContentLength !== undefined && result.ContentLength > 10 * 1024 * 1024)) throw new Error("Invalid staged resume.");
+  const bytes = await result.Body.transformToByteArray();
+  const buffer = Buffer.from(bytes);
+  if (!validatePdfUpload({ name: "resume.pdf", type: "application/pdf", size: buffer.length }, buffer)) throw new Error("Invalid staged resume.");
+  if (createHash("sha256").update(buffer).digest("hex") !== key.split("/").pop()?.slice(0, 64)) throw new Error("Invalid staged resume.");
+  return buffer;
 }
 
 /**

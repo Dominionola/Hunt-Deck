@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ResumeDropzone } from "./ResumeDropzone";
 import { SkillTagCloud } from "./SkillTagCloud";
 import type { ResumeParsedData } from "@/lib/validations/resume";
+import { pollResumeJob } from "../pollResumeJob";
 import {
   Briefcase,
   GraduationCap,
@@ -28,6 +29,7 @@ export function ResumeReviewDashboard({
   const [resumeData, setResumeData] = useState<ResumeParsedData | null>(initialData);
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -74,10 +76,10 @@ export function ResumeReviewDashboard({
         throw new Error(json.error || "Failed to process resume");
       }
 
-      setResumeData(json.extractedData || json.parsedData);
-      if (json.resumeId) {
-        setResumeId(json.resumeId);
-      }
+      if (typeof json.jobId !== "string") throw new Error("Resume processing could not be started.");
+      const result = await pollResumeJob(json.jobId, setProcessingProgress);
+      setResumeData(result.parsedData);
+      setResumeId(result.resumeId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upload failed";
       setErrorMessage(msg);
@@ -117,6 +119,7 @@ export function ResumeReviewDashboard({
   if (isLoading) {
     return (
       <div className="w-full max-w-5xl mx-auto space-y-6 animate-pulse">
+        <p role="status" className="text-body-regular text-text-secondary">Processing your resume: {processingProgress}%</p>
         <div className="h-28 bg-[#FAF7F0] border border-[#E5E1D8] rounded-2xl" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="h-64 bg-[#FAF7F0] border border-[#E5E1D8] rounded-2xl" />
