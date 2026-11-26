@@ -30,7 +30,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // getClaims verifies the session and refreshes expired tokens when necessary.
-  await supabase.auth.getClaims();
+  // getUser refreshes the session and validates the token with Supabase Auth
+  await supabase.auth.getUser();
   return response;
 }
