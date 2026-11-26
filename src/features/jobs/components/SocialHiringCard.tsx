@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import {
-  Sparkle,
   ArrowSquareOut,
   Copy,
   CheckCircle,
@@ -13,6 +12,7 @@ import {
   Briefcase,
   MapPin,
 } from "@phosphor-icons/react";
+import { CompatibilityRating } from "@/components/application/compatibility-rating/compatibility-rating";
 import { toast } from "@/components/base/toast/toast";
 import { SocialHiringPost } from "../types/socialHiring";
 
@@ -88,12 +88,6 @@ export function SocialHiringCard({ post, onSelect }: SocialHiringCardProps) {
               </p>
             </div>
           </div>
-
-          {/* Match Score Badge */}
-          <div className="shrink-0 inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <Sparkle size={12} weight="fill" />
-            <span>{post.fitScore}% Match</span>
-          </div>
         </div>
 
         {/* Target Role & Work Arrangement */}
@@ -120,6 +114,14 @@ export function SocialHiringCard({ post, onSelect }: SocialHiringCardProps) {
           <span>•</span>
           <span className="text-[10px] text-[#5B6478]/80">{post.postedAt}</span>
         </div>
+
+        {/* Compatibility Rating */}
+        <CompatibilityRating
+          score={post.fitScore}
+          label="Profile compatibility"
+          explanation="Alignment between your master skills and this unadvertised social hiring post."
+          className="mb-3"
+        />
 
         {/* Live Quote Preview of Original Post */}
         <div className="p-3 bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl mb-3 text-xs text-[#16213A] leading-relaxed relative">

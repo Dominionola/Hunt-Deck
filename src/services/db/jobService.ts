@@ -1,11 +1,39 @@
 import { db } from "@/lib/db";
 import type { JobQueryInput } from "@/lib/validations/job";
+import type { Prisma } from "@prisma/client";
+import { buildRegionPrismaWhere } from "@/services/jobs/regionFilter";
+import { extractTechStack, resolveStackSearchTerms } from "@/services/jobs/techStackExtractor";
 
 export async function getJobs(query: JobQueryInput, userId?: string) {
-  const { search, remoteType, minSalary, platform, location, page, limit } =
+  const { search, titles, stack, regionScope, remoteType, minSalary, platform, location, page, limit } =
     query;
 
-  const where: Record<string, unknown> = {};
+  const andConditions: Prisma.JobPostingWhereInput[] = [];
+  if (process.env.JOB_SOURCE_CLOSURE_ENABLED === "1") {
+    andConditions.push({ OR: [{ sourceRecords: { none: {} } }, { sourceRecords: { some: { closedAt: null } } }] });
+  }
+  if (titles?.length) {
+    andConditions.push({ OR: titles.map((t) => ({ title: { contains: t, mode: "insensitive" } })) });
+  }
+  if (stack?.length) {
+    const terms = resolveStackSearchTerms(stack);
+    andConditions.push({
+      OR: terms.flatMap((term) => [
+        { title: { contains: term, mode: "insensitive" } },
+        { description: { contains: term, mode: "insensitive" } },
+      ]),
+    });
+  }
+  const regionWhere = buildRegionPrismaWhere(regionScope);
+  if (regionWhere) {
+    andConditions.push(regionWhere);
+  }
+
+  const where: Prisma.JobPostingWhereInput = andConditions.length ? { AND: andConditions } : {};
+  if (query.minFitScore !== undefined) {
+    if (!userId) throw new Error("Authentication required for fit filtering.");
+    where.fitScores = { some: { resume: { userId, isPrimary: true }, overallScore: { gte: query.minFitScore } } };
+  }
 
   if (search) {
     where.OR = [
@@ -37,22 +65,26 @@ export async function getJobs(query: JobQueryInput, userId?: string) {
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { postedAt: "desc" },
-      include: userId
+      select: { id: true, title: true, company: true, description: true, location: true, remoteType: true, atsPlatform: true,
+        applicationUrl: true, postedAt: true, salaryMin: true, salaryMax: true,
+        fitScores: userId
         ? {
-            fitScores: {
               where: {
                 resume: { userId, isPrimary: true },
               },
               take: 1,
-            },
+              select: { overallScore: true, matchingKeywords: true, missingKeywords: true },
           }
-        : undefined,
+        : false },
     }),
     db.jobPosting.count({ where }),
   ]);
 
   return {
-    items,
+    items: items.map(({ description, ...job }) => ({
+      ...job,
+      techStack: extractTechStack(job.title, description),
+    })),
     pagination: {
       page,
       limit,

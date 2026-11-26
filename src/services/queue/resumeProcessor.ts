@@ -6,6 +6,7 @@ import { extractResumeEntities } from "@/services/ai/resumeExtractor";
 import { generateCandidateOrJobEmbedding } from "@/services/ai/cloudflareEmbeddingService";
 import { resumeJobDataSchema, resumeJobIdSchema } from "@/lib/validations/resumeJob";
 import { redisConnectionOptions, resumeJobId, RESUME_QUEUE, type ResumeJobData, type ResumeJobResult } from "./resumeQueue";
+import { classifyResumeFailure, isInvalidExtractionResponse, resumeFailureReason, safeResumeIssuePaths, type ResumeProcessingStage } from "@/lib/resumeFailure";
 
 export function isTransientResumeError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -18,21 +19,26 @@ export function isTransientResumeError(error: unknown): boolean {
 }
 
 export async function processQueuedResume(job: Job<ResumeJobData, ResumeJobResult>): Promise<ResumeJobResult> {
+  let stage: ResumeProcessingStage = "storage";
   try {
     const { userId, storageKey } = resumeJobDataSchema.parse(job.data);
     const jobId = resumeJobIdSchema.parse(job.id);
     await job.updateProgress(10);
     const buffer = await readStagedResume(userId, storageKey);
     if (resumeJobId(userId, buffer) !== jobId) throw new Error("Invalid job content reference.");
+    stage = "parsing";
     const extraction = await parsePdfBuffer(buffer);
     if (!extraction.text.trim()) throw new Error("Resume has no extractable text.");
     await job.updateProgress(35);
+    stage = "extraction";
     const parsedData = await extractResumeEntities(extraction.text);
     await job.updateProgress(65);
+    stage = "embedding";
     const embedding = await generateCandidateOrJobEmbedding(extraction.text);
     await job.updateProgress(85);
 
     const resumeId = `resume_${job.id}`;
+    stage = "persistence";
     await db.$transaction(async (tx) => {
       // Serialize persistence for an owner, including replays after a lost worker
       // lock. Different uploads must not both become the first primary resume.
@@ -51,8 +57,16 @@ export async function processQueuedResume(job: Job<ResumeJobData, ResumeJobResul
     return { resumeId };
   } catch (error) {
     // Queue metadata must never contain provider response text or resume content.
-    if (isTransientResumeError(error)) throw new Error("Resume processing temporarily unavailable.");
-    throw new UnrecoverableError("Resume processing failed. Please try another file or contact support.");
+    const code = classifyResumeFailure(stage, error);
+    const fields = safeResumeIssuePaths(error);
+    const status = error && typeof error === "object" && "status" in error ? error.status : undefined;
+    const httpStatus = typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599 ? status : undefined;
+    if (typeof job.log === "function") await job.log(JSON.stringify({ event: "resume_processing_failed", stage, code,
+      ...(fields.length ? { fields } : {}), ...(httpStatus ? { httpStatus } : {}) })).catch(() => {});
+    if (isTransientResumeError(error) || (stage === "extraction" && isInvalidExtractionResponse(error))) {
+      throw new Error("Resume processing temporarily unavailable.");
+    }
+    throw new UnrecoverableError(resumeFailureReason(code));
   }
 }
 

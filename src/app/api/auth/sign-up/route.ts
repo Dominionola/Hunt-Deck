@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { signUpSchema } from "@/lib/validations/auth";
 import { createClient } from "@/utils/supabase/server";
-import { syncSupabaseUser } from "@/services/db/userService";
+import { registerAccount } from "@/services/auth/registrationService";
 
 export async function POST(request: Request) {
   // Prevent cross-site origin submissions
@@ -24,40 +24,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
 
-  const { email, password, fullName } = parsed.data;
-
   try {
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (error || !data.user) {
+    const result = await registerAccount(parsed.data, new URL("/auth/callback", request.url).toString(), supabase.auth);
+    if (result.error) {
       return NextResponse.json(
-        { error: error?.message || "Registration failed." },
+        { error: result.error },
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // Sync into internal Prisma User table mapped to Supabase UUID
-    await syncSupabaseUser(data.user.id, email, fullName);
-
     return NextResponse.json(
-      {
-        success: true,
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-        },
-      },
+      result,
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch {

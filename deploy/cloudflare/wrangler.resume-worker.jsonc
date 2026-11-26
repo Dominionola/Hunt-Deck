@@ -1,0 +1,48 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "huntdeck-resume-worker",
+  "main": "../../src/services/queue/cloudflareWorkerEntry.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
+  "r2_buckets": [
+    {
+      "binding": "RESUMES_BUCKET",
+      "bucket_name": "huntdeck-resumes-dev"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "R2_BUCKET_NAME": "huntdeck-resumes-dev",
+    "RESUME_DEAD_LETTER_QUEUE_NAME": "huntdeck-resume-dlq"
+  },
+  "queues": {
+    "consumers": [
+      {
+        "queue": "huntdeck-resume-jobs",
+        "max_batch_size": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "huntdeck-resume-dlq"
+      },
+      {
+        "queue": "huntdeck-resume-dlq",
+        "max_batch_size": 10
+      }
+    ]
+  }
+  // Required before deploying to Cloudflare Workers:
+  // 1. Workers Paid plan (for Queues & Hyperdrive)
+  // 2. Hyperdrive binding + @prisma/adapter-pg / pg (standard @prisma/client native binary cannot run in workerd):
+  // "hyperdrive": [
+  //   { "binding": "HYPERDRIVE", "id": "<hyperdrive-config-id>" }
+  // ]
+  // 3. Secrets via `wrangler secret put`: GROQ_API_KEY, DATABASE_URL (or HYPERDRIVE)
+}

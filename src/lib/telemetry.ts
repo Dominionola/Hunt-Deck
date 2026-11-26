@@ -15,7 +15,10 @@ export type TelemetryEventType =
   | "first_mover_alert_queued"
   | "first_mover_alert_delivered"
   | "outreach_copied"
-  | "resume_tailored";
+  | "resume_tailored"
+  | "email_rate_limited"
+  | "email_sent"
+  | "email_delivery_failed";
 
 export interface TelemetryEvent {
   id: string;

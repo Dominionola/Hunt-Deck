@@ -7,6 +7,7 @@ import {
 import { z } from "zod";
 
 const createOpportunitySchema = z.object({
+  jobId: z.string().min(1).max(120).optional(),
   company: z.string().min(1, "Company name is required"),
   role: z.string().min(1, "Role title is required"),
   location: z.string().optional(),
@@ -14,6 +15,7 @@ const createOpportunitySchema = z.object({
   salary: z.string().optional(),
   fitScore: z.number().min(0).max(100).optional(),
   stage: z.enum(["saved", "tailored", "applied", "interviewing", "offer"]).optional(),
+  coverLetterText: z.string().max(50000).optional(),
   notes: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   contact: z

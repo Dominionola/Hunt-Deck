@@ -143,6 +143,7 @@ export async function getUserPipelineApplications(userId: string): Promise<Pipel
 }
 
 export interface PipelineOpportunityInput {
+  jobId?: string;
   company: string;
   role: string;
   location?: string;
@@ -150,6 +151,7 @@ export interface PipelineOpportunityInput {
   salary?: string;
   fitScore?: number;
   stage?: PipelineStage;
+  coverLetterText?: string;
   notes?: string[];
   tags?: string[];
   contact?: {
@@ -198,13 +200,19 @@ export async function createOrUpsertPipelineOpportunity(
     });
   }
 
-  // 2. Find or create JobPosting
-  let job = await db.jobPosting.findFirst({
-    where: {
-      company: input.company,
-      title: input.role,
-    },
-  });
+  // 2. Resolve exact JobPosting by jobId if supplied, or find/create by company + role
+  let job = input.jobId
+    ? await db.jobPosting.findUnique({ where: { id: input.jobId } })
+    : null;
+
+  if (!job) {
+    job = await db.jobPosting.findFirst({
+      where: {
+        company: input.company,
+        title: input.role,
+      },
+    });
+  }
 
   if (!job) {
     const cleanUrl =
@@ -244,8 +252,8 @@ export async function createOrUpsertPipelineOpportunity(
   const meta = {
     stage,
     workArrangement: input.workArrangement || "remote",
-    salary: input.salary || "$180,000 - $220,000",
-    fitScore: input.fitScore ?? 90,
+    salary: input.salary || "Not specified",
+    fitScore: input.fitScore ?? 85,
     notes: input.notes || ["Added to pipeline."],
     tags: input.tags || ["Target Opportunity"],
     contact: input.contact,
@@ -262,6 +270,7 @@ export async function createOrUpsertPipelineOpportunity(
     },
     update: {
       status,
+      ...(input.coverLetterText ? { coverLetterText: input.coverLetterText } : {}),
       appliedAt: stage === "applied" ? new Date() : undefined,
       interviewNotes: JSON.stringify(meta),
     },
@@ -270,6 +279,7 @@ export async function createOrUpsertPipelineOpportunity(
       jobId: job.id,
       resumeId: resume.id,
       status,
+      ...(input.coverLetterText ? { coverLetterText: input.coverLetterText } : {}),
       appliedAt: stage === "applied" ? new Date() : undefined,
       interviewNotes: JSON.stringify(meta),
     },

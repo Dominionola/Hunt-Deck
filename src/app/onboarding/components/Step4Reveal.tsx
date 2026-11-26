@@ -8,15 +8,19 @@ import {
   MapPin,
   CurrencyDollar,
   Eye,
-  ShieldCheck,
   SpinnerGap,
 } from "@phosphor-icons/react";
+import {
+  CompatibilityRating,
+  type CompatibilityFactor,
+} from "@/components/application/compatibility-rating/compatibility-rating";
 import type { TopMatchCard, SkillItem } from "@/lib/validations/onboarding";
 import { calculateCandidateFit } from "@/services/matching/fitScoreEngine";
 import type { ResumeParsedData } from "@/lib/validations/resume";
 
 interface Step4RevealProps {
   candidateSkills?: SkillItem[];
+  parsedResume?: ResumeParsedData;
   targetTitles?: string[];
   minSalary?: number;
   workArrangement?: string;
@@ -80,6 +84,7 @@ const SEED_OPPORTUNITIES = [
 
 export function Step4Reveal({
   candidateSkills,
+  parsedResume,
   targetTitles,
   minSalary = 140000,
   workArrangement = "REMOTE",
@@ -90,28 +95,18 @@ export function Step4Reveal({
   const [previewedId, setPreviewedId] = useState<string | null>(null);
 
   // Dynamic Fit Score Engine calculation using PRD 40/30/20/10 weighting
-  const matches: TopMatchCard[] = useMemo(() => {
+  const matches: Array<TopMatchCard & { factors: CompatibilityFactor[] }> = useMemo(() => {
     const verifiedSkills = candidateSkills && candidateSkills.length > 0
       ? candidateSkills.filter((s) => s.isVerified).map((s) => s.name)
-      : ["TypeScript", "React", "Node.js", "PostgreSQL", "AWS"];
-
-    const primaryTitle = targetTitles?.[0] || "Senior Software Engineer";
+      : [];
 
     const candidateProfile: ResumeParsedData = {
-      fullName: "Candidate",
-      email: "candidate@example.com",
+      ...parsedResume,
+      fullName: parsedResume?.fullName || "",
       skills: verifiedSkills,
-      experience: [
-        {
-          company: "Current Company",
-          title: primaryTitle,
-          startDate: "2021-01",
-          isCurrent: true,
-          bullets: ["Engineered scalable cloud architecture and high-performance backend pipelines."],
-        },
-      ],
-      education: [],
-      projects: [],
+      experience: parsedResume?.experience || [],
+      education: parsedResume?.education || [],
+      projects: parsedResume?.projects || [],
     };
 
     return SEED_OPPORTUNITIES.map((opp) => {
@@ -126,7 +121,7 @@ export function Step4Reveal({
         id: opp.id,
         companyName: opp.companyName,
         roleTitle: opp.roleTitle,
-        fitScore: Math.max(72, Math.min(98, fit.overallScore)),
+        fitScore: fit.overallScore,
         location: opp.location,
         compensationRange: opp.compensationRange,
         atsSource: opp.atsSource,
@@ -135,12 +130,18 @@ export function Step4Reveal({
         matchedSkillsSample:
           fit.matchingKeywords.length > 0
             ? fit.matchingKeywords.slice(0, 4)
-            : opp.requiredSkills.slice(0, 3),
+            : [],
+        factors: [
+          { label: "Skills", value: fit.skillsScore, weight: "40%" },
+          { label: "Experience", value: fit.experienceScore, weight: "30%" },
+          { label: "Title", value: fit.titleScore, weight: "20%" },
+          { label: "Location", value: fit.locationScore, weight: "10%" },
+        ],
       };
     })
       .sort((a, b) => b.fitScore - a.fitScore)
       .slice(0, 3);
-  }, [candidateSkills, targetTitles]);
+  }, [candidateSkills, parsedResume]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -161,7 +162,7 @@ export function Step4Reveal({
           </span>
         </h1>
         <p className="text-sm text-[#5B6478] max-w-lg mx-auto">
-          These top roles match your verified competencies and meet your{" "}
+          Example roles show how matching uses your confirmed skills. These are not live vacancies. Your selected preferences are {targetTitles?.join(", ")},{" "}
           <strong className="text-[#16213A] tabular-nums font-mono">{formatCurrency(minSalary)}+</strong>{" "}
           {workArrangement.toLowerCase()} preference.
         </p>
@@ -221,11 +222,15 @@ export function Step4Reveal({
               </div>
 
               {/* Score & Action Column with Apple HIG 44px touch target */}
-              <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#E5E1D8]">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#16213A] text-white text-xs font-semibold font-mono tabular-nums shadow-xs">
-                  <ShieldCheck size={14} weight="fill" className="text-[#2D5F8A]" />
-                  <span>{job.fitScore}% Fit Score</span>
-                </div>
+              <div className="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end justify-between md:justify-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#E5E1D8]">
+                <CompatibilityRating
+                  variant="compact"
+                  score={job.fitScore}
+                  label="Fit score"
+                  explanation="Computed from your verified skills (40%), experience (30%), role title (20%), and location (10%)."
+                  factors={job.factors}
+                  className="w-full sm:w-44"
+                />
 
                 <button
                   type="button"

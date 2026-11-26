@@ -14,47 +14,28 @@ import type {
   SkillItem,
   SkillCategory,
 } from "@/lib/validations/onboarding";
+import type { ResumeParsedData } from "@/lib/validations/resume";
 
 interface Step2SkillsProps {
   initialData?: Partial<Step2SkillsInput>;
+  parsedResume?: ResumeParsedData;
   onBack: () => void;
   onComplete: (data: Step2SkillsInput) => void;
 }
-
-const DEFAULT_EXTRACTED_SKILLS: SkillItem[] = [
-  { name: "TypeScript", category: "Languages", isVerified: true },
-  { name: "Python", category: "Languages", isVerified: true },
-  { name: "SQL", category: "Languages", isVerified: true },
-  { name: "Go", category: "Languages", isVerified: false },
-
-  { name: "React", category: "Frameworks", isVerified: true },
-  { name: "Next.js", category: "Frameworks", isVerified: true },
-  { name: "Node.js", category: "Frameworks", isVerified: true },
-  { name: "PostgreSQL", category: "Frameworks", isVerified: true },
-
-  { name: "AWS", category: "Cloud", isVerified: true },
-  { name: "Docker", category: "Cloud", isVerified: true },
-  { name: "Kubernetes", category: "Cloud", isVerified: false },
-  { name: "Redis", category: "Cloud", isVerified: true },
-
-  { name: "CI/CD Pipelines", category: "Methodologies", isVerified: true },
-  { name: "System Architecture", category: "Methodologies", isVerified: true },
-  { name: "Distributed Systems", category: "Methodologies", isVerified: true },
-  { name: "Team Mentorship", category: "Methodologies", isVerified: true },
-];
 
 const CATEGORIES: SkillCategory[] = [
   "Languages",
   "Frameworks",
   "Cloud",
   "Methodologies",
+  "Domains",
 ];
 
-export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProps) {
+export function Step2Skills({ initialData, parsedResume, onBack, onComplete }: Step2SkillsProps) {
   const [skills, setSkills] = useState<SkillItem[]>(
     initialData?.skills && initialData.skills.length > 0
       ? initialData.skills
-      : DEFAULT_EXTRACTED_SKILLS
+      : []
   );
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillCategory, setNewSkillCategory] = useState<SkillCategory>("Languages");
@@ -105,8 +86,7 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
     }
 
     onComplete({
-      skills,
-      atsReadabilityScore: initialData?.atsReadabilityScore || 88,
+      skills: verified,
     });
   };
 
@@ -121,7 +101,7 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
           </span>
         </h1>
         <p className="text-sm text-[#5B6478] max-w-lg mx-auto">
-          These are example skills. Toggle or remove them, and add the skills that fit you.
+          Review the skills extracted from your document. Remove anything incorrect and add any missing skills below.
         </p>
       </div>
 
@@ -131,19 +111,19 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
         <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-[#2D5F8A]/10 border border-[#2D5F8A]/20 flex items-center justify-center text-[#2D5F8A] font-bold text-lg font-mono">
-              88%
+              {verifiedSkillsCount}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-[#16213A]">
-                  ATS Readability & Keyword Match Score
+                  Skills for your profile
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                  Optimal Structure
+                  Review required
                 </span>
               </div>
               <p className="text-xs text-[#5B6478] mt-0.5">
-                Standard terminology formatted for high-ranking automated ATS parsing.
+                Confirm these skills before saving. No ATS score has been calculated.
               </p>
             </div>
           </div>
@@ -153,6 +133,23 @@ export function Step2Skills({ initialData, onBack, onComplete }: Step2SkillsProp
             <span>{verifiedSkillsCount} Active Verified Skills</span>
           </div>
         </div>
+
+        {parsedResume && (
+          <div className="space-y-2 text-body-regular text-text-primary">
+            <h2 className="text-headline-medium">Imported information</h2>
+            {!!parsedResume.extractionWarnings?.length && <p role="status" className="text-body-regular text-text-secondary">Some contact details or links could not be validated. Check these against your original PDF before using your profile.</p>}
+            <p>{parsedResume.fullName || "Name not found"} · {parsedResume.email || "Email not found"}</p>
+            <p>{[parsedResume.phone, parsedResume.location].filter(Boolean).join(" · ")}</p>
+            <p>{parsedResume.summary}</p>
+            {parsedResume.experience.map((role, i) => <div key={i}>
+              <p>{role.title} · {role.company} · {role.startDate} – {role.isCurrent ? "Present" : role.endDate || "End date not found"}</p>
+              <ul className="list-disc ps-6">{role.bullets.map((bullet, j) => <li key={j}>{bullet}</li>)}</ul>
+            </div>)}
+            {parsedResume.education.map((item, i) => <p key={i}>{item.institution} · {item.degree} · {item.fieldOfStudy} · {item.graduationYear}</p>)}
+            {parsedResume.projects.map((project, i) => <p key={i}>{project.name} · {project.description} · {project.technologies.join(", ")}</p>)}
+          </div>
+        )}
+        {skills.length === 0 && <p role="status" className="text-body-regular text-text-secondary">No skills found yet. Add at least three of your skills below.</p>}
 
         {/* Categorized Skills Cloud */}
         <div className="space-y-6">

@@ -84,6 +84,12 @@ it("processes a synthetic PDF with mocked storage, providers and database; repla
     globalThis.fetch = async () => Response.json({ error: { message: "DO_NOT_LOG_SYNTHETIC_DOCUMENT" } }, { status: 400 });
     await assert.rejects(processQueuedResume(job), (error: unknown) => error instanceof UnrecoverableError && !error.message.includes("DO_NOT_LOG"));
     assert.equal(JSON.stringify(getAiTelemetrySummary()).includes("DO_NOT_LOG"), false);
+    const diagnostics: string[] = [];
+    const loggedJob = { ...job, log: async (line: string) => { diagnostics.push(line); return diagnostics.length; } } as typeof job;
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: "INVALID_JSON_PRIVATE_CANARY" } }] });
+    await assert.rejects(processQueuedResume(loggedJob), (error: unknown) => error instanceof Error && !(error instanceof UnrecoverableError) && error.message === "Resume processing temporarily unavailable.");
+    assert.deepEqual(JSON.parse(diagnostics[0]), { event: "resume_processing_failed", stage: "extraction", code: "EXTRACTION_INVALID_OUTPUT" });
+    assert.equal(diagnostics.join("").includes("CANARY"), false);
   } finally {
     db.$transaction = originalTransaction;
     storage.mock.restore();

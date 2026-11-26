@@ -25,6 +25,7 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +58,11 @@ export default function SignUpPage() {
         return;
       }
 
+      if (data.confirmationRequired) {
+        setConfirmationRequired(true);
+        setIsLoading(false);
+        return;
+      }
       toast.success("Account Created", {
         description: "Welcome to Hunt Deck! Setting up your onboarding...",
       });
@@ -100,6 +106,11 @@ export default function SignUpPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white/95 backdrop-blur-md border border-[#E5E1D8] py-8 px-6 sm:px-10 shadow-[0_4px_24px_-4px_rgba(22,33,58,0.06),0_1px_2px_rgba(22,33,58,0.04)] rounded-3xl">
+          {confirmationRequired && <div role="status" className="mb-6 space-y-2 text-body-regular text-text-primary">
+            <h2 className="text-headline-medium">Check your email</h2>
+            <p>Confirm your email address before signing in and uploading a resume. Check your spam folder too. If you already have an account, sign in instead.</p>
+            <Link href="/login" className="inline-flex min-h-11 items-center text-text-primary underline">Go to sign in</Link>
+          </div>}
           {errorMessage && (
             <div
               role="alert"
@@ -110,7 +121,7 @@ export default function SignUpPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" hidden={confirmationRequired}>
             <div>
               <label
                 htmlFor="fullName"

@@ -1,17 +1,23 @@
 "use client";
 
-import React from "react";
-import type { JobCardData } from "./JobCard";
 import {
-  X,
-  Sparkle,
-  ArrowSquareOut,
-  CheckCircle,
-  WarningCircle,
-  Buildings,
-  MapPin,
-  PencilSimple,
-} from "@phosphor-icons/react";
+  RiBriefcaseLine,
+  RiCheckLine,
+  RiErrorWarningLine,
+  RiExternalLinkLine,
+  RiMapPinLine,
+  RiSparklingLine,
+} from "@remixicon/react";
+import { Chip } from "@/components/base/badges/chip";
+import { Button, ButtonLink } from "@/components/base/buttons/button";
+import {
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from "@/components/base/modal/modal";
+import { CompatibilityRating } from "@/components/application/compatibility-rating/compatibility-rating";
+import type { JobCardData } from "./JobCard";
 import { CompanyContactsCard } from "./CompanyContactsCard";
 
 interface JobDetailModalProps {
@@ -21,165 +27,136 @@ interface JobDetailModalProps {
 }
 
 export function JobDetailModal({ job, onClose, onTailor }: JobDetailModalProps) {
-  if (!job) return null;
-
-  const score = job.fitScore ?? 84;
-  const matchingSkills = job.matchingSkills || ["TypeScript", "React", "PostgreSQL", "Next.js"];
-  const missingSkills = job.missingSkills || ["Kubernetes", "Kafka", "GraphQL"];
+  const matchingSkills = job?.matchingSkills ?? [];
+  const missingSkills = job?.missingSkills ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F1117]/60 backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl bg-white border border-[#E5E1D8] rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Modal Header */}
-        <div className="p-6 border-b border-[#E5E1D8] flex items-start justify-between bg-[#FAF7F0]/40">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E1D8] flex items-center justify-center text-[#2D5F8A]">
-              <Buildings size={22} weight="duotone" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#5B6478]">{job.company}</p>
-              <h2 className="text-lg font-bold text-[#16213A]">{job.title}</h2>
-              <div className="flex items-center space-x-2 text-xs text-[#5B6478] mt-0.5">
-                <span className="flex items-center space-x-1">
-                  <MapPin size={12} />
-                  <span>{job.location || "Remote"}</span>
+    <Modal
+      isOpen={job !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      size="lg"
+    >
+      {job ? (
+        <>
+          <ModalHeader
+            icon={RiBriefcaseLine}
+            title={job.title}
+            description={
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span>{job.company}</span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <RiMapPinLine className="size-3.5" aria-hidden="true" />
+                  {job.location || "Remote"}
                 </span>
-                <span>•</span>
-                <span className="font-medium text-[#16213A]">{job.atsPlatform} Board</span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-1.5 text-[#5B6478] hover:text-[#16213A] hover:bg-white rounded-lg transition-colors cursor-pointer"
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Modal Scrollable Body */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          {/* Fit Score & Dimension Breakdown */}
-          <div className="p-4 bg-[#FAF7F0]/60 border border-[#E5E1D8] rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Sparkle size={18} className="text-[#2D5F8A]" weight="fill" />
-                <h3 className="text-xs font-bold text-[#16213A] uppercase tracking-wider">
-                  ATS Match Analysis: {score}% Overall Fit
-                </h3>
-              </div>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                Strong First Mover Role
+                <span>·</span>
+                <span>{job.atsPlatform} Board</span>
               </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-              <div className="p-2 bg-white rounded-lg border border-[#E5E1D8]">
-                <p className="text-[11px] text-[#5B6478]">Skills (40%)</p>
-                <p className="font-bold text-[#16213A] text-sm">88%</p>
-              </div>
-              <div className="p-2 bg-white rounded-lg border border-[#E5E1D8]">
-                <p className="text-[11px] text-[#5B6478]">Experience (30%)</p>
-                <p className="font-bold text-[#16213A] text-sm">85%</p>
-              </div>
-              <div className="p-2 bg-white rounded-lg border border-[#E5E1D8]">
-                <p className="text-[11px] text-[#5B6478]">Title (20%)</p>
-                <p className="font-bold text-[#16213A] text-sm">90%</p>
-              </div>
-              <div className="p-2 bg-white rounded-lg border border-[#E5E1D8]">
-                <p className="text-[11px] text-[#5B6478]">Location (10%)</p>
-                <p className="font-bold text-[#16213A] text-sm">100%</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Keyword Gap Analysis */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-[#16213A] uppercase tracking-wider">
-              Keyword Gap Analysis (ATS Rank Optimization)
-            </h3>
-
-            {/* Matched Keywords */}
-            <div>
-              <p className="text-xs font-semibold text-emerald-800 flex items-center space-x-1.5 mb-2">
-                <CheckCircle size={14} weight="fill" />
-                <span>Found in your resume ({matchingSkills.length})</span>
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {matchingSkills.map((s) => (
-                  <span
-                    key={s}
-                    className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium rounded-md"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Missing Keywords */}
-            <div>
-              <p className="text-xs font-semibold text-amber-800 flex items-center space-x-1.5 mb-2">
-                <WarningCircle size={14} weight="fill" />
-                <span>Missing keywords to insert ({missingSkills.length})</span>
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {missingSkills.map((s) => (
-                  <span
-                    key={s}
-                    className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium rounded-md"
-                  >
-                    + {s}
-                  </span>
-                ))}
-              </div>
-              <p className="text-[11px] text-[#5B6478] mt-1.5">
-                Tip: Hunt Deck will automatically place missing keywords in your Skills block (×2.5 uplift) and recent bullet points (×2.0 uplift) without altering your factual achievements.
-              </p>
-            </div>
-          </div>
-
-          {/* Key Contacts & Contact Intelligence Layer (Phase 4) */}
-          <CompanyContactsCard
-            companyName={job.company}
-            roleTitle={job.title}
+            }
           />
-        </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 bg-[#FAF7F0]/40 border-t border-[#E5E1D8] flex items-center justify-between">
-          <a
-            href={job.applicationUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center space-x-1.5 text-xs text-[#5B6478] hover:text-[#16213A] font-medium"
-          >
-            <span>View Original Posting</span>
-            <ArrowSquareOut size={14} />
-          </a>
+          <ModalBody className="space-y-6">
+            <CompatibilityRating
+              variant="breakdown"
+              score={job.fitScore}
+              label="ATS match compatibility"
+              unrankedLabel="Not scored"
+              explanation="Weighted across skills (40%), experience (30%), title alignment (20%), and location (10%)."
+              factors={
+                job.fitBreakdown
+                  ? [
+                      { label: "Skills", value: job.fitBreakdown.skillsScore, weight: "40%" },
+                      { label: "Experience", value: job.fitBreakdown.experienceScore, weight: "30%" },
+                      { label: "Title", value: job.fitBreakdown.titleScore, weight: "20%" },
+                      { label: "Location", value: job.fitBreakdown.locationScore, weight: "10%" },
+                    ]
+                  : undefined
+              }
+            />
 
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={onClose}
-              className="px-3.5 py-2 text-xs font-medium text-[#5B6478] hover:text-[#16213A] transition-colors cursor-pointer"
+            <div className="space-y-4">
+              <h3 className="text-caption-1-semibold uppercase tracking-wider text-text-secondary">
+                Keyword Gap Analysis
+              </h3>
+
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-caption-1-semibold text-status-lime-text">
+                  <RiCheckLine className="size-4" aria-hidden="true" />
+                  <span>Found in your resume ({matchingSkills.length})</span>
+                </p>
+                {matchingSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {matchingSkills.map((skill) => (
+                      <Chip key={skill} variant="caption" color="lime">
+                        {skill}
+                      </Chip>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-body-2-regular text-text-tertiary">
+                    No matched resume skills recorded for this posting yet.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-caption-1-semibold text-status-yellow-text">
+                  <RiErrorWarningLine className="size-4" aria-hidden="true" />
+                  <span>Missing keywords to review ({missingSkills.length})</span>
+                </p>
+                {missingSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingSkills.map((skill) => (
+                      <Chip key={skill} variant="caption" color="yellow">
+                        + {skill}
+                      </Chip>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-body-2-regular text-text-tertiary">
+                    No missing keywords flagged.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <CompanyContactsCard companyName={job.company} roleTitle={job.title} />
+          </ModalBody>
+
+          <ModalFooter className="sm:justify-between">
+            <ButtonLink
+              href={job.applicationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="ghost"
+              trailingIcon={RiExternalLinkLine}
+              className="min-h-11"
             >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                onClose();
-                onTailor(job);
-              }}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-[#16213A] hover:bg-[#0D1527] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
-            >
-              <PencilSimple size={14} weight="bold" />
-              <span>Tailor Application</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+              View Original Posting
+            </ButtonLink>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+              <Button type="button" variant="secondary" className="min-h-11" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                leadingIcon={RiSparklingLine}
+                className="min-h-11"
+                onClick={() => {
+                  onClose();
+                  onTailor(job);
+                }}
+              >
+                Tailor Application
+              </Button>
+            </div>
+          </ModalFooter>
+        </>
+      ) : null}
+    </Modal>
   );
 }

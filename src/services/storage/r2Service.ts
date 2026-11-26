@@ -2,10 +2,11 @@ import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { validatePdfUpload } from "../../lib/validations/upload";
 import { createHash } from "crypto";
+import { db } from "@/lib/db";
 
 function getR2Client(): S3Client | null {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
@@ -51,6 +52,78 @@ export async function readStagedResume(userId: string, key: string): Promise<Buf
   if (!validatePdfUpload({ name: "resume.pdf", type: "application/pdf", size: buffer.length }, buffer)) throw new Error("Invalid staged resume.");
   if (createHash("sha256").update(buffer).digest("hex") !== key.split("/").pop()?.slice(0, 64)) throw new Error("Invalid staged resume.");
   return buffer;
+}
+
+/** Delete an owner-scoped staged PDF from private R2 storage. */
+export async function deleteStagedResume(userId: string, key: string): Promise<void> {
+  if (!/^[a-zA-Z0-9_-]+$/.test(userId) || !key.startsWith(`resumes/${userId}/`) || !/^resumes\/[a-zA-Z0-9_-]+\/[a-f0-9]{64}\.pdf$/.test(key)) {
+    throw new Error("Invalid resume storage reference.");
+  }
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!client || !bucket || process.env.R2_PUBLIC_URL) throw new Error("Private shared resume storage is not configured.");
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export function selectOrphanedStagedKeys(
+  objects: ReadonlyArray<{ key?: string; lastModified?: Date }>,
+  isReferenced: (key: string) => boolean,
+  cutoff: Date,
+  maxDelete: number,
+): string[] {
+  const selected: string[] = [];
+  for (const obj of objects) {
+    if (selected.length >= maxDelete) break;
+    if (!obj.key || !/^resumes\/[a-zA-Z0-9_-]+\/[a-f0-9]{64}\.pdf$/.test(obj.key)) continue;
+    if (!obj.lastModified || obj.lastModified.getTime() > cutoff.getTime()) continue;
+    if (!isReferenced(obj.key)) selected.push(obj.key);
+  }
+  return selected;
+}
+
+/** Bounded cleanup of unreferenced staged PDFs older than `maxAgeHours`; never logs keys or user IDs. */
+export async function cleanupOrphanedStagedResumes(options?: {
+  maxAgeHours?: number;
+  dryRun?: boolean;
+  maxDelete?: number;
+  isReferenced?: (key: string) => Promise<boolean>;
+}): Promise<{ scanned: number; orphaned: number; deleted: number; dryRun: boolean }> {
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!client || !bucket || process.env.R2_PUBLIC_URL) throw new Error("Private shared resume storage is not configured.");
+
+  const maxAgeHours = Math.max(1, Math.min(24 * 30, options?.maxAgeHours ?? 24));
+  const dryRun = options?.dryRun ?? true;
+  const maxDelete = Math.max(1, Math.min(500, Math.trunc(options?.maxDelete ?? 100)));
+  const cutoff = new Date(Date.now() - maxAgeHours * 3600_000);
+
+  const list = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: "resumes/", MaxKeys: 500 }));
+  const contents = list.Contents ?? [];
+  const referenced = new Set<string>();
+  for (const item of contents) {
+    if (!item.Key || !/^resumes\/[a-zA-Z0-9_-]+\/[a-f0-9]{64}\.pdf$/.test(item.Key)) continue;
+    const isRef = options?.isReferenced
+      ? await options.isReferenced(item.Key)
+      : Boolean(await db.resume.findFirst({ where: { originalFileUrl: `r2://${bucket}/${item.Key}` }, select: { id: true } }));
+    if (isRef) referenced.add(item.Key);
+  }
+
+  const orphans = selectOrphanedStagedKeys(
+    contents.map((item) => ({ key: item.Key, lastModified: item.LastModified })),
+    (key) => referenced.has(key),
+    cutoff,
+    maxDelete,
+  );
+
+  let deleted = 0;
+  if (!dryRun) {
+    for (const key of orphans) {
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      deleted++;
+    }
+  }
+
+  return { scanned: contents.length, orphaned: orphans.length, deleted, dryRun };
 }
 
 /**
@@ -139,7 +212,8 @@ export async function generatePresignedUploadUrl(
  */
 export async function generatePresignedDownloadUrl(
   userId: string,
-  storageKey: string
+  storageKey: string,
+  requestedExpirySeconds: number = 300,
 ): Promise<{ downloadUrl: string; expiresInSeconds: number }> {
   // Ownership verification check: key must start with resumes/{userId}/
   const expectedPrefix = `resumes/${userId}/`;
@@ -148,7 +222,7 @@ export async function generatePresignedDownloadUrl(
   }
 
   const bucketName = process.env.R2_BUCKET_NAME || "huntdeck-resumes-private";
-  const expiresInSeconds = 300; // 5 minutes
+  const expiresInSeconds = Math.max(1, Math.min(300, Math.trunc(requestedExpirySeconds)));
 
   const client = getR2Client();
   if (!client) {

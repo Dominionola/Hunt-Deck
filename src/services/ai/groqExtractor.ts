@@ -13,6 +13,7 @@
 import OpenAI from "openai";
 import { resumeParsedDataSchema, type ResumeParsedData } from "@/lib/validations/resume";
 import { recordAiCallTelemetry } from "./aiTelemetry";
+import { groqResumeJsonSchema, normalizeMissingResumeFields } from "@/lib/validations/resumeExtraction";
 
 export interface GroqExtractionResult {
   data: ResumeParsedData;
@@ -54,9 +55,10 @@ Analyze the candidate's raw resume text and extract ONLY the facts explicitly pr
 CRITICAL EXTRACTION RULES:
 1. NEVER invent, infer, or extrapolate information. If a field is not present in the text, use an empty string "" or empty array [].
 2. For missing or uncertain fields:
-   - If graduation year is not stated, leave it as undefined or "".
+   - If graduation year is not stated, use "".
    - If degree is not stated, use "[Not Specified]".
-   - If end date is missing for a past role, leave as undefined or "".
+   - If end date is missing for a past role, use "".
+   - Include every field in the schema. Missing optional facts are ""; missing lists are []. Never output null.
 3. Skills: Extract only explicitly mentioned technologies, languages, frameworks, and methodologies.
 4. Experience bullets: Preserve candidate's exact achievements and metrics. Do not fabricate or inject metrics.
 5. You MUST return a single JSON object strictly matching this schema:
@@ -110,7 +112,9 @@ export async function extractResumeEntitiesWithGroq(
     const response = await client.chat.completions.create({
       model,
       temperature: 0.1,
-      response_format: { type: "json_object" },
+      response_format: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(model)
+        ? { type: "json_schema", json_schema: { name: "resume_extraction", strict: true, schema: groqResumeJsonSchema } }
+        : { type: "json_object" },
       messages: [
         { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
         {
@@ -123,14 +127,14 @@ export async function extractResumeEntitiesWithGroq(
     const latencyMs = Date.now() - startTime;
     const rawContent = response.choices[0]?.message?.content;
 
-    if (!rawContent) {
-      throw new Error("Groq returned empty response content.");
+    if (!rawContent || response.choices[0]?.finish_reason === "length") {
+      throw new SyntaxError("Resume extraction returned incomplete structured data.");
     }
 
     const parsedJson = JSON.parse(rawContent);
 
     // Validate strictly against project Zod schema
-    const validatedData = resumeParsedDataSchema.parse(parsedJson);
+    const validatedData = resumeParsedDataSchema.parse(normalizeMissingResumeFields(parsedJson));
 
     const tokenUsage = {
       promptTokens: response.usage?.prompt_tokens ?? 0,

@@ -21,11 +21,11 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await getAuthenticatedUser();
+  if (!user) redirect("/login");
 
   // Onboarding Gate: If authenticated user has not completed onboarding, redirect to /onboarding
   if (user) {
     const hasCompletedOnboarding = Boolean(
-      (user.resumes && user.resumes.length > 0) ||
       (user.profile && user.profile.targetTitles && user.profile.targetTitles.length > 0)
     );
 
@@ -36,7 +36,7 @@ export default async function DashboardLayout({
 
   return (
     <div className={jakarta.className}>
-      <DashboardShell>{children}</DashboardShell>
+      <DashboardShell user={{ name: user.name, email: user.email, role: user.role }}>{children}</DashboardShell>
     </div>
   );
 }

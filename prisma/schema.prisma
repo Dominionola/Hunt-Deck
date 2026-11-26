@@ -3,7 +3,7 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  previewFeatures = ["postgresqlExtensions", "driverAdapters"]
 }
 
 datasource db {
@@ -148,10 +148,78 @@ model JobPosting {
   sourceDork     DorkDiscoverySession? @relation(fields: [sourceDorkId], references: [id], onDelete: SetNull)
   fitScores      JobFitScore[]
   applications   Application[]
+  sourceRecords  JobSourceRecord[]
 
   @@unique([company, title, applicationUrl])
   @@index([contentHash, embeddingModel, embeddingVersion], map: "idx_jobs_content_hash")
   @@map("job_postings")
+}
+
+// Import state is source-scoped; a fenced run must finish verification before
+// missing source records can be marked closed. Existing job history is kept.
+model JobSource {
+  id          String            @id @default(cuid())
+  platform    AtsPlatform
+  board       String
+  generation  Int               @default(0)
+  runs        JobSourceRun[]
+  records     JobSourceRecord[]
+  @@unique([platform, board])
+  @@map("job_sources")
+}
+
+// Draft: reviewed sources are scheduled only after the related migration is approved.
+model JobSourceSchedule {
+  id            String      @id
+  platform      AtsPlatform
+  board         String
+  approvedBy    String
+  enabled       Boolean     @default(true)
+  nextRunAt     DateTime    @db.Timestamptz(6)
+  intervalHours Int         @default(24)
+  reviewedAt    DateTime    @db.Timestamptz(6)
+
+  @@unique([platform, board])
+  @@index([enabled, nextRunAt])
+  @@map("job_source_schedules")
+}
+
+model JobSourceRun {
+  id            String    @id @default(cuid())
+  sourceId      String
+  generation    Int
+  state         String    @default("collecting")
+  nextOffset    Int       @default(0)
+  invalidCount  Int       @default(0)
+  startedAt     DateTime  @default(now()) @db.Timestamptz(6)
+  finishedAt    DateTime? @db.Timestamptz(6)
+  source        JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  observations  JobSourceObservation[]
+  @@unique([sourceId, generation])
+  @@index([sourceId, state])
+  @@map("job_source_runs")
+}
+
+model JobSourceObservation {
+  runId      String
+  pass       Int
+  externalId String
+  run        JobSourceRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  @@id([runId, pass, externalId])
+  @@map("job_source_observations")
+}
+
+model JobSourceRecord {
+  sourceId       String
+  externalId     String
+  jobId          String
+  lastGeneration Int
+  closedAt       DateTime? @db.Timestamptz(6)
+  source         JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  job            JobPosting @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  @@id([sourceId, externalId])
+  @@index([jobId])
+  @@map("job_source_records")
 }
 
 model JobFitScore {

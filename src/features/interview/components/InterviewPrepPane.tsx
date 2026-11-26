@@ -64,7 +64,7 @@ export function InterviewPrepPane() {
   const [critiqueResult, setCritiqueResult] = useState<AnswerCritiqueResult | null>(null);
   const [hasSimulatedError, setHasSimulatedError] = useState<boolean>(false);
 
-  // Generate question bank
+  // Generate question bank (sample questions based on example context)
   const questionBank = useMemo(() => {
     return generateInterviewQuestionBank(DEFAULT_CONTEXT);
   }, []);
@@ -90,7 +90,7 @@ export function InterviewPrepPane() {
     }
   };
 
-  // 1-Click Auto-Draft STAR response
+  // 1-Click Load Example STAR response
   const handleAutoDraftStar = () => {
     const star: StarResponse = synthesizeStarResponse(
       activeQuestion.id,
@@ -99,8 +99,8 @@ export function InterviewPrepPane() {
     );
     setCandidateAnswer(star.fullNarrative);
     setCritiqueResult(null);
-    toast.success("STAR Response Generated", {
-      description: "Mapped your verified resume experience into Situation, Task, Action, and Result.",
+    toast.success("Example STAR Response Loaded", {
+      description: "Mapped example candidate experience into Situation, Task, Action, and Result.",
     });
   };
 
@@ -108,7 +108,7 @@ export function InterviewPrepPane() {
   const handleRunCritique = () => {
     if (!candidateAnswer.trim()) {
       toast.error("Answer is Empty", {
-        description: "Please type or paste an answer, or click 'Auto-Draft STAR Response' first.",
+        description: "Please type or paste an answer, or click 'Load Example STAR Answer' first.",
       });
       return;
     }
@@ -128,8 +128,8 @@ export function InterviewPrepPane() {
         });
         setCritiqueResult(result);
         setIsAnalyzing(false);
-        toast.success("AI Answer Critique Ready", {
-          description: `Evaluated across 4 dimensions: Overall Score ${result.totalScore}/100 (${result.grade}).`,
+        toast.success("Example AI Answer Critique Ready", {
+          description: `Evaluated across 4 dimensions: Example Score ${result.totalScore}/100 (${result.grade}).`,
         });
       } catch {
         setIsAnalyzing(false);
@@ -161,18 +161,21 @@ export function InterviewPrepPane() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-[#2D5F8A]">
-                Target Context:
+                Example Target Context:
               </span>
               <span className="text-sm font-semibold text-[#16213A]">
                 {DEFAULT_CONTEXT.roleTitle} @ {DEFAULT_CONTEXT.companyName}
               </span>
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#FFFFFF] border border-[#E5E1D8] text-[#5B6478]">
-                {DEFAULT_CONTEXT.seniorityLevel} Level
+                {DEFAULT_CONTEXT.seniorityLevel} Level (Sample)
+              </span>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#EDF3F7] border border-[#2D5F8A]/20 text-[#2D5F8A]">
+                Example Timeline &bull; Round 2 Technical Loop
               </span>
             </div>
             <p className="text-xs text-[#5B6478] mt-1">
-              Curated for {DEFAULT_CONTEXT.companyName}&apos;s engineering bar & leadership principles.
-              Practice STAR responses and receive instant 4-axis AI diagnostics.
+              Sample scenario curated for {DEFAULT_CONTEXT.companyName}&apos;s engineering bar & leadership principles.
+              Practice STAR responses and receive instant 4-axis diagnostic feedback on example answers.
             </p>
           </div>
         </div>
@@ -193,11 +196,10 @@ export function InterviewPrepPane() {
                 key={cat.key}
                 type="button"
                 onClick={() => handleSelectCategory(cat.key)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition-all duration-150 active:scale-[0.98] ${
-                  isSelected
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition-all duration-150 active:scale-[0.98] ${isSelected
                     ? "bg-[#16213A] text-white shadow-sm"
                     : "text-[#5B6478] hover:text-[#16213A] hover:bg-[#FAF7F0]"
-                }`}
+                  }`}
               >
                 <Icon size={16} weight={isSelected ? "bold" : "regular"} />
                 <span>{cat.label}</span>
@@ -212,9 +214,14 @@ export function InterviewPrepPane() {
         {/* Left Column: Questions List (4 cols) */}
         <div className="lg:col-span-5 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-[#E5E1D8]">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[#5B6478]">
-              {selectedCategory.toUpperCase()} QUESTIONS ({filteredQuestions.length})
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#5B6478]">
+                EXAMPLE {selectedCategory.toUpperCase()} QUESTIONS ({filteredQuestions.length})
+              </h2>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF7F0] border border-[#E5E1D8] text-[#5B6478] uppercase">
+                Sample
+              </span>
+            </div>
             <span className="text-[11px] text-[#2D5F8A] font-semibold">High Probability</span>
           </div>
 
@@ -229,15 +236,14 @@ export function InterviewPrepPane() {
                     setActiveQuestionId(q.id);
                     setCritiqueResult(null);
                   }}
-                  className={`w-full text-left p-4 rounded-xl border transition-all duration-150 min-h-[44px] active:scale-[0.99] flex flex-col justify-between gap-2.5 ${
-                    isActive
+                  className={`w-full text-left p-4 rounded-xl border transition-all duration-150 min-h-[44px] active:scale-[0.99] flex flex-col justify-between gap-2.5 ${isActive
                       ? "bg-[#FFFFFF] border-[#2D5F8A] shadow-md ring-1 ring-[#2D5F8A]/30"
                       : "bg-[#FFFFFF] border-[#E5E1D8] hover:border-[#2D5F8A]/50 hover:bg-[#FAF7F0]/60"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FAF7F0] border border-[#E5E1D8] text-[#5B6478]">
-                      #{idx + 1} &bull; {q.subcategory}
+                      #{idx + 1} &bull; Example &bull; {q.subcategory}
                     </span>
                     {q.associatedCompanyPrinciple && (
                       <span className="text-[10px] font-medium text-[#2D5F8A] bg-[#2D5F8A]/10 px-2 py-0.5 rounded-full">
@@ -247,9 +253,8 @@ export function InterviewPrepPane() {
                   </div>
 
                   <p
-                    className={`text-xs font-semibold leading-relaxed line-clamp-3 ${
-                      isActive ? "text-[#16213A]" : "text-[#5B6478]"
-                    }`}
+                    className={`text-xs font-semibold leading-relaxed line-clamp-3 ${isActive ? "text-[#16213A]" : "text-[#5B6478]"
+                      }`}
                   >
                     {q.question}
                   </p>
@@ -278,10 +283,13 @@ export function InterviewPrepPane() {
               <div>
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF7F0] text-[#16213A] border border-[#E5E1D8] uppercase tracking-wider">
-                    {activeQuestion.subcategory}
+                    Example &bull; {activeQuestion.subcategory}
+                  </span>
+                  <span className="text-[10px] font-semibold text-[#2D5F8A] bg-[#2D5F8A]/10 px-2 py-0.5 rounded-full">
+                    Sample Question
                   </span>
                   {activeQuestion.targetInterviewerType && (
-                    <span className="text-[10px] font-semibold text-[#2D5F8A] bg-[#2D5F8A]/10 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-semibold text-[#5B6478] bg-[#FAF7F0] border border-[#E5E1D8] px-2 py-0.5 rounded-full">
                       Target: {activeQuestion.targetInterviewerType.replace("_", " ")}
                     </span>
                   )}
@@ -296,7 +304,7 @@ export function InterviewPrepPane() {
             <div className="bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl p-3.5 space-y-1.5">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#16213A]">
                 <Lightbulb size={15} weight="duotone" className="text-[#2D5F8A]" />
-                <span>Interviewer Signal & Objective</span>
+                <span>Interviewer Signal & Objective (Example Guidance)</span>
               </div>
               <p className="text-xs text-[#5B6478] leading-relaxed">
                 {activeQuestion.whyAsked}
@@ -306,7 +314,7 @@ export function InterviewPrepPane() {
             {/* Suggested Focus Points */}
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#5B6478] block mb-2">
-                Suggested Focus Pillars:
+                Suggested Focus Pillars (Example):
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {activeQuestion.suggestedFocusPoints.map((pt, i) => (
@@ -328,7 +336,7 @@ export function InterviewPrepPane() {
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#FAF7F0] hover:bg-[#E5E1D8] text-[#16213A] border border-[#E5E1D8] text-xs font-semibold min-h-[44px] transition-all duration-150 active:scale-[0.98]"
               >
                 <Sparkle size={15} weight="fill" className="text-[#2D5F8A]" />
-                <span>Auto-Draft STAR from Resume</span>
+                <span>Load Example STAR Answer</span>
               </button>
 
               <button
@@ -363,15 +371,14 @@ export function InterviewPrepPane() {
 
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                    wordCount >= 120 && wordCount <= 350
+                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${wordCount >= 120 && wordCount <= 350
                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                       : wordCount > 350
-                      ? "bg-amber-50 text-amber-700 border border-amber-200"
-                      : "bg-[#FAF7F0] text-[#5B6478] border border-[#E5E1D8]"
-                  }`}
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        : "bg-[#FAF7F0] text-[#5B6478] border border-[#E5E1D8]"
+                    }`}
                 >
-                  {wordCount} words {wordCount >= 120 && wordCount <= 350 ? "(Optimal)" : "(Target 120-350)"}
+                  {wordCount} words {wordCount >= 120 && wordCount <= 350 ? "(Optimal ~2m delivery)" : "(Example Timeline: 120-350 words / ~2 min)"}
                 </span>
               </div>
             </div>
@@ -380,7 +387,7 @@ export function InterviewPrepPane() {
               <textarea
                 value={candidateAnswer}
                 onChange={(e) => setCandidateAnswer(e.target.value)}
-                placeholder="Type your spoken answer or paste your notes here... You can also click 'Auto-Draft STAR from Resume' to synthesize an initial framework."
+                placeholder="Type your spoken answer or paste your notes here... You can also click 'Load Example STAR Answer' to view a sample STAR framework."
                 rows={7}
                 className="w-full text-xs sm:text-sm text-[#16213A] bg-[#FAF7F0]/40 border border-[#E5E1D8] rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#2D5F8A] focus:border-transparent transition-all leading-relaxed placeholder:text-[#5B6478]/60 font-sans"
               />
@@ -467,29 +474,28 @@ export function InterviewPrepPane() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-[#16213A]">
-                        Overall Readiness Score
+                        Example Readiness Score
                       </h4>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                          critiqueResult.grade === "Exemplary"
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${critiqueResult.grade === "Exemplary"
                             ? "bg-emerald-100 text-emerald-800"
                             : critiqueResult.grade === "Strong"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
                       >
-                        {critiqueResult.grade}
+                        {critiqueResult.grade} (Sample)
                       </span>
                     </div>
                     <p className="text-xs text-[#5B6478]">
-                      Benchmark based on {DEFAULT_CONTEXT.companyName} bar
+                      Example diagnostic benchmark based on sample {DEFAULT_CONTEXT.companyName} bar
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs text-[#5B6478]">
                   <ChartBar size={16} weight="duotone" className="text-[#2D5F8A]" />
-                  <span>4 Evaluated Dimensions</span>
+                  <span>4 Example Evaluated Dimensions</span>
                 </div>
               </div>
 
@@ -500,7 +506,7 @@ export function InterviewPrepPane() {
                     label: "Clarity & Brevity",
                     score: critiqueResult.dimensionScores.clarityAndBrevity,
                     max: 25,
-                    desc: "Optimal spoken word count & flow",
+                    desc: "Optimal spoken delivery (~2 min example timeline) & flow",
                   },
                   {
                     label: "Ownership & Agency",
@@ -548,7 +554,7 @@ export function InterviewPrepPane() {
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
                       <CheckCircle size={14} weight="fill" />
-                      <span>Observed Strengths</span>
+                      <span>Observed Strengths (Sample)</span>
                     </span>
                     <ul className="space-y-1">
                       {critiqueResult.strengths.map((str, i) => (
@@ -568,7 +574,7 @@ export function InterviewPrepPane() {
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
                       <WarningCircle size={14} weight="fill" />
-                      <span>Critical Polish Areas</span>
+                      <span>Critical Polish Areas (Sample)</span>
                     </span>
                     <ul className="space-y-1">
                       {critiqueResult.improvementAreas.map((imp, i) => (
@@ -588,7 +594,7 @@ export function InterviewPrepPane() {
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#2D5F8A] flex items-center gap-1">
                       <Lightbulb size={14} weight="fill" />
-                      <span>Actionable Coaching Recommendations</span>
+                      <span>Actionable Coaching Recommendations (Sample)</span>
                     </span>
                     <ul className="space-y-1">
                       {critiqueResult.coachingTips.map((tip, i) => (
@@ -610,7 +616,7 @@ export function InterviewPrepPane() {
                   <div className="flex items-center gap-2">
                     <ShieldCheck size={18} weight="duotone" className="text-[#2D5F8A]" />
                     <span className="text-xs font-bold text-[#16213A]">
-                      AI Refined STAR Answer (Empirical Benchmark)
+                      Example AI-Refined STAR Answer (Sample Benchmark)
                     </span>
                   </div>
 
@@ -655,7 +661,7 @@ export function InterviewPrepPane() {
                 Ready to practice your response
               </h4>
               <p className="text-xs text-[#5B6478] max-w-sm mx-auto">
-                Type your spoken talking points above or auto-draft a structured STAR answer from your verified resume bullets.
+                Type your spoken talking points above or load an example structured STAR answer based on sample background experience.
               </p>
               <button
                 type="button"
@@ -663,7 +669,7 @@ export function InterviewPrepPane() {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2D5F8A] text-white text-xs font-semibold min-h-[44px] transition-all duration-150 active:scale-[0.98] shadow-sm hover:bg-[#254F73]"
               >
                 <Sparkle size={14} weight="fill" />
-                <span>Auto-Draft STAR Answer</span>
+                <span>Load Example STAR Answer</span>
               </button>
             </div>
           )}

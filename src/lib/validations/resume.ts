@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const extractionWarningSchema = z.enum(["email_needs_review", "project_url_needs_review", "linkedin_url_needs_review"]);
+
 export const experienceItemSchema = z.object({
   company: z.string(),
   title: z.string(),
@@ -30,6 +32,9 @@ export const resumeParsedDataSchema = z.object({
   phone: z.string().optional(),
   location: z.string().optional(),
   summary: z.string().optional(),
+  extractionWarnings: z.array(extractionWarningSchema).optional(),
+  linkedinUrl: z.string().url().optional(),
+  targetSeniority: z.enum(["ENTRY", "MID", "SENIOR", "LEAD", "EXECUTIVE"]).optional(),
   skills: z.array(z.string()).default([]),
   experience: z.array(experienceItemSchema).default([]),
   education: z.array(educationItemSchema).default([]),

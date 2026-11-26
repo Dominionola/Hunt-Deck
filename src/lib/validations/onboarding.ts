@@ -42,8 +42,10 @@ export type Step1ImportInput = z.infer<typeof step1ImportSchema>;
 export const step2SkillsSchema = z.object({
   skills: z
     .array(skillItemSchema)
-    .min(3, "At least 3 verified skills are required to calculate job fit"),
-  atsReadabilityScore: z.number().int().min(0).max(100).default(88),
+    .min(3, "At least 3 verified skills are required to calculate job fit")
+    .refine((skills) => skills.filter((skill) => skill.isVerified).length >= 3,
+      "At least 3 verified skills are required to calculate job fit"),
+  atsReadabilityScore: z.number().int().min(0).max(100).optional(),
 });
 
 export type Step2SkillsInput = z.infer<typeof step2SkillsSchema>;
@@ -62,16 +64,18 @@ export type SeniorityLevel = z.infer<typeof seniorityLevelSchema>;
 
 export const step3TargetsSchema = z.object({
   targetTitles: z
-    .array(z.string().trim().min(2, "Title must be at least 2 characters"))
-    .min(1, "Select or enter at least one target job title"),
+    .array(z.string().trim().min(2, "Title must be at least 2 characters").max(120).transform((title) => title.replace(/\s+/g, " ")))
+    .min(1, "Select or enter at least one target job title").max(20)
+    .transform((titles) => [...new Map(titles.map((title) => [title.toLocaleLowerCase("en-US"), title])).values()]),
   workArrangement: workArrangementSchema,
-  preferredLocations: z.array(z.string().trim()).default([]),
+  preferredLocations: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
   seniorityLevel: seniorityLevelSchema,
   minSalary: z
     .number()
     .int()
     .min(0, "Minimum salary cannot be negative")
-    .default(140000),
+    .max(10000000)
+    .default(0),
 });
 
 export type Step3TargetsInput = z.infer<typeof step3TargetsSchema>;

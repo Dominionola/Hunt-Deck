@@ -1,0 +1,15 @@
+[Unit]
+Description=Check Hunt Deck worker queues
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=huntdeck
+WorkingDirectory=/opt/huntdeck
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/huntdeck/worker.env
+ExecStart=/usr/bin/env npm run worker:health
+TimeoutStartSec=20
+NoNewPrivileges=true
+PrivateTmp=true

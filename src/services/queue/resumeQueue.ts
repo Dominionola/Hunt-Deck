@@ -8,6 +8,7 @@ export interface ResumeJobData { userId: string; storageKey: string }
 export interface ResumeJobResult { resumeId: string }
 export const RESUME_JOB_OPTIONS: JobsOptions = {
   attempts: 3, backoff: { type: "exponential", delay: 1000 },
+  keepLogs: 5,
   removeOnComplete: { age: 24 * 60 * 60 }, removeOnFail: { age: 24 * 60 * 60 },
 };
 

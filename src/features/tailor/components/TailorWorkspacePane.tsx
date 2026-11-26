@@ -2,17 +2,25 @@
 
 import React, { useState } from "react";
 import {
-  FileText,
-  EnvelopeSimple,
-  ShieldCheck,
   CheckCircle,
-  Copy,
-  Printer,
   Sparkle,
   GitDiff,
   Tag,
-  DownloadSimple,
 } from "@phosphor-icons/react";
+import {
+  RiDownloadLine,
+  RiFileCopyLine,
+  RiFileTextLine,
+  RiMailLine,
+  RiPrinterLine,
+  RiShieldCheckLine,
+} from "@remixicon/react";
+import { Button } from "@/components/base/buttons/button";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/base/segmented-control/segmented-control";
+import { Tab, TabList, TabPanel, Tabs } from "@/components/base/tabs/tabs";
 import { toast } from "@/components/base/toast/toast";
 import type { TailorSessionState } from "../types";
 import type { CoverLetterTone } from "@/services/ai/coverLetterGenerator";
@@ -107,79 +115,59 @@ export function TailorWorkspacePane({
   };
 
   return (
-    <main className="w-full lg:w-[55%] xl:w-[58%] flex flex-col gap-4 bg-white border border-[#E5E1D8] rounded-2xl p-5 sm:p-6 shadow-2xs">
-      {/* Top Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E5E1D8]">
-        <div className="flex items-center gap-1.5 p-1 bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setActiveTab("resume")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              activeTab === "resume"
-                ? "bg-white text-[#16213A] shadow-2xs font-bold"
-                : "text-[#5B6478] hover:text-[#16213A]"
-            }`}
-          >
-            <FileText size={14} className={activeTab === "resume" ? "text-[#2D5F8A]" : ""} />
-            <span>ATS Resume</span>
-          </button>
+    <main className="w-full lg:w-[55%] xl:w-[58%] flex flex-col gap-4 rounded-3xl border border-border-button-default bg-background-primary-default p-5 sm:p-6 shadow-xs">
+      <Tabs
+        selectedKey={activeTab}
+        onSelectionChange={(key) => setActiveTab(key as "resume" | "cover_letter" | "audit")}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabList aria-label="Tailoring workspace sections" className="w-auto border-b-0">
+            <Tab id="resume" icon={RiFileTextLine} className="min-h-11">
+              ATS Resume
+            </Tab>
+            <Tab id="cover_letter" icon={RiMailLine} className="min-h-11">
+              Cover Letter
+            </Tab>
+            <Tab
+              id="audit"
+              icon={RiShieldCheckLine}
+              count={session.auditReport.overallScore}
+              className="min-h-11"
+            >
+              Pre-Flight Audit
+            </Tab>
+          </TabList>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("cover_letter")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              activeTab === "cover_letter"
-                ? "bg-white text-[#16213A] shadow-2xs font-bold"
-                : "text-[#5B6478] hover:text-[#16213A]"
-            }`}
-          >
-            <EnvelopeSimple size={14} className={activeTab === "cover_letter" ? "text-[#2D5F8A]" : ""} />
-            <span>Cover Letter</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              activeTab === "audit"
-                ? "bg-white text-[#16213A] shadow-2xs font-bold"
-                : "text-[#5B6478] hover:text-[#16213A]"
-            }`}
-          >
-            <ShieldCheck size={14} className={activeTab === "audit" ? "text-emerald-700" : ""} />
-            <span>Pre-Flight Audit</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800">
-              {session.auditReport.overallScore}
-            </span>
-          </button>
+          {/* Global Export Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              leadingIcon={RiDownloadLine}
+              disabled={isExporting}
+              onClick={() => handleDownloadAts("html")}
+              className="min-h-11"
+            >
+              {isExporting ? "Exporting..." : "Download ATS File"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              leadingIcon={RiPrinterLine}
+              onClick={handlePrintPdf}
+              className="min-h-11"
+            >
+              Print PDF
+            </Button>
+          </div>
         </div>
 
-        {/* Global Export Action Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={isExporting}
-            onClick={() => handleDownloadAts("html")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 border border-[#E5E1D8] text-[#16213A] text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <DownloadSimple size={14} className="text-[#2D5F8A]" />
-            <span>{isExporting ? "Exporting..." : "Download ATS File"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={handlePrintPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 border border-[#E5E1D8] text-[#16213A] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-          >
-            <Printer size={14} className="text-[#5B6478]" />
-            <span>Print PDF</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* TAB 1: ATS Tailored Resume View                               */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {activeTab === "resume" && (
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 1: ATS Tailored Resume View                               */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        <TabPanel id="resume">
         <div className="space-y-6">
           {/* Status Sub-Banner */}
           <div className="p-3 bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl flex items-center justify-between text-xs">
@@ -310,36 +298,32 @@ export function TailorWorkspacePane({
             />
           </section>
         </div>
-      )}
+        </TabPanel>
 
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* TAB 2: Deep Bespoke Cover Letter View                         */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {activeTab === "cover_letter" && (
-        <div className="space-y-5">
-          {/* Tone Selector & Anti-Cliche Badge */}
-          <div className="p-4 bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-[10px] font-bold text-[#5B6478] uppercase tracking-wider mb-1">
-                Tone Calibration
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 2: Deep Bespoke Cover Letter View                         */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        <TabPanel id="cover_letter">
+          <div className="space-y-5">
+            {/* Tone Selector & Anti-Cliche Badge */}
+            <div className="p-4 bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold text-[#5B6478] uppercase tracking-wider mb-1.5">
+                  Tone Calibration
+                </div>
+                <SegmentedControl
+                  aria-label="Cover letter tone calibration"
+                  selectedKeys={[session.coverLetter.tone]}
+                  onSelectionChange={(keys) => {
+                    const selected = [...keys][0] as CoverLetterTone | undefined;
+                    if (selected) onToneChange(selected);
+                  }}
+                >
+                  <SegmentedControlItem id="modern_tech" className="min-h-10">Modern tech</SegmentedControlItem>
+                  <SegmentedControlItem id="executive" className="min-h-10">Executive</SegmentedControlItem>
+                  <SegmentedControlItem id="warm" className="min-h-10">Warm</SegmentedControlItem>
+                </SegmentedControl>
               </div>
-              <div className="flex items-center gap-1.5">
-                {(["modern_tech", "executive", "warm"] as CoverLetterTone[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => onToneChange(t)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
-                      session.coverLetter.tone === t
-                        ? "bg-[#16213A] text-white shadow-2xs"
-                        : "bg-white text-[#5B6478] hover:text-[#16213A] border border-[#E5E1D8]"
-                    }`}
-                  >
-                    {t.replace("_", " ")}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right">
@@ -405,26 +389,27 @@ export function TailorWorkspacePane({
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[#5B6478]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-body-2-regular text-text-secondary">
               Ready to send with your application on {session.job.atsPlatform}.
             </span>
-            <button
+            <Button
               type="button"
+              variant="primary"
+              leadingIcon={RiFileCopyLine}
               onClick={handleCopyCoverLetter}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16213A] hover:bg-[#0D1527] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              className="min-h-11"
             >
-              <Copy size={14} />
-              <span>{copiedLetter ? "Copied to Clipboard!" : "Copy Full Letter"}</span>
-            </button>
+              {copiedLetter ? "Copied to Clipboard!" : "Copy Full Letter"}
+            </Button>
           </div>
-        </div>
-      )}
+          </div>
+        </TabPanel>
 
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* TAB 3: ATS Pre-Flight Audit Report View                       */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {activeTab === "audit" && (
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 3: ATS Pre-Flight Audit Report View                       */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        <TabPanel id="audit">
         <div className="space-y-5">
           {/* Pre-Flight Score Banner */}
           <div className="p-5 bg-[#FAF7F0] border border-[#E5E1D8] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -450,14 +435,15 @@ export function TailorWorkspacePane({
               </div>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="primary"
+              leadingIcon={RiDownloadLine}
               onClick={handlePrintPdf}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#2D5F8A] hover:bg-[#2D5F8A]/90 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              className="min-h-11"
             >
-              <DownloadSimple size={14} />
-              <span>Download Report & PDF</span>
-            </button>
+              Download Report &amp; PDF
+            </Button>
           </div>
 
           {/* 4 Dimension Metrics */}
@@ -528,7 +514,8 @@ export function TailorWorkspacePane({
             </div>
           </div>
         </div>
-      )}
+        </TabPanel>
+      </Tabs>
     </main>
   );
 }

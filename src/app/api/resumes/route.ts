@@ -49,9 +49,8 @@ export async function GET() {
       },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to load resume profile.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Failed to load resume profile." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }
 

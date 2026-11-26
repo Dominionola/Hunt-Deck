@@ -1,0 +1,13 @@
+This service uses the ESCO classification of the European Commission.
+
+Source: European Commission, ESCO v1.2.1, English occupation labels, alternative labels and occupation-skill links.
+https://esco.ec.europa.eu/
+https://esco.ec.europa.eu/en/use-esco/download/privacy-statement
+https://commission.europa.eu/legal-notice_en
+
+Reuse: Commission Decision 2011/833/EU and the European Commission reuse notice (CC BY 4.0 unless otherwise indicated).
+https://creativecommons.org/licenses/by/4.0/
+
+Adaptation by Hunt Deck: English fields selected, URI suffixes used as stable IDs, relationships compacted and sorted. Descriptions retained as source data. Search normalization, ranking and explanations are Hunt Deck's work. No European Commission endorsement is implied. This is an occupational reference, not proof of qualifications or professional authorization.
+
+The accompanying provenance file records the requested version, retrieval date, source page checksums, counts and generated snapshot checksum. Refresh with node scripts/refresh-role-catalog.mjs; verify with --check. No candidate data is sent by the refresh process.

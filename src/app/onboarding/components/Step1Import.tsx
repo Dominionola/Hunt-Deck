@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   UploadSimple,
   FilePdf,
@@ -13,11 +13,14 @@ import {
   LinkedinLogo,
   Sparkle,
 } from "@phosphor-icons/react";
-import type { Step1ImportInput } from "@/lib/validations/onboarding";
+import { step1ImportSchema, type Step1ImportInput } from "@/lib/validations/onboarding";
+import type { ResumeParsedData } from "@/lib/validations/resume";
+import { importOnboardingResume, loadSavedOnboardingResume } from "@/features/onboarding/importResume";
+import { Button } from "@/components/base/buttons/button";
 
 interface Step1ImportProps {
   initialData?: Partial<Step1ImportInput>;
-  onComplete: (data: Step1ImportInput) => void;
+  onComplete: (data: Step1ImportInput, parsedData?: ResumeParsedData) => void;
 }
 
 export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
@@ -31,6 +34,24 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
   const [processStep, setProcessStep] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [savedResume, setSavedResume] = useState<Awaited<ReturnType<typeof loadSavedOnboardingResume>>>(null);
+  const [savedState, setSavedState] = useState<"loading" | "ready" | "error">("loading");
+  const [savedRevision, setSavedRevision] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadSavedOnboardingResume(controller.signal).then((resume) => {
+      if (!controller.signal.aborted) { setSavedResume(resume); setSavedState("ready"); }
+    }).catch(() => { if (!controller.signal.aborted) setSavedState("error"); });
+    return () => controller.abort();
+  }, [savedRevision]);
+
+  const useSavedResume = () => {
+    if (!savedResume) return;
+    const input = step1ImportSchema.safeParse({ resumeFileId: savedResume.id,
+      fileName: savedResume.title, linkedinUrl: linkedinUrl || savedResume.parsedData.linkedinUrl || "", isScratchMode: false });
+    if (!input.success) { setErrorMessage("Please enter a valid LinkedIn profile URL or leave it empty."); return; }
+    onComplete(input.data, savedResume.parsedData);
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -42,24 +63,23 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
 
   const handleFileSelect = (file: File) => {
     setErrorMessage(null);
-    const validExtensions = [".pdf", ".docx", ".txt"];
+    const validExtensions = [".pdf"];
     const fileExt = `.${file.name.split(".").pop()?.toLowerCase()}`;
 
     if (!validExtensions.includes(fileExt)) {
-      setErrorMessage("Please upload a valid resume file (.pdf, .docx, or .txt)");
+      setErrorMessage("Please upload a PDF resume or a PDF export of your LinkedIn profile.");
       return;
     }
 
-    if (file.size > 20 * 1024 * 1024) {
-      setErrorMessage("File exceeds the 20MB limit. Please upload a smaller document.");
+    if (file.size === 0 || file.size > 10 * 1024 * 1024) {
+      setErrorMessage("Please choose a non-empty PDF up to 10 MB.");
       return;
     }
 
     setSelectedFile(file);
     setFileName(file.name);
     setFileSizeBytes(file.size);
-    // Generate a temporary client ID if none exists yet
-    setResumeFileId(crypto.randomUUID ? crypto.randomUUID() : `res-${Date.now()}`);
+    setResumeFileId("");
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -80,13 +100,15 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
   };
 
   const handleScratchMode = () => {
-    onComplete({
+    const data = step1ImportSchema.safeParse({
       resumeFileId: "scratch-profile-init",
       fileName: "Scratch Master Profile",
       fileSizeBytes: 0,
       linkedinUrl,
       isScratchMode: true,
     });
+    if (!data.success) { setErrorMessage("Please enter a valid LinkedIn profile URL or leave it empty."); return; }
+    onComplete(data.data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,42 +121,29 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
     setIsProcessing(true);
     setErrorMessage(null);
 
-    // Process parsing stages (< 2.5s) with background upload attempt
     try {
-      setProcessStep(1); // Text extraction & upload
-
+      const input = step1ImportSchema.safeParse({ resumeFileId: resumeFileId || "pending", linkedinUrl });
+      if (!input.success) throw new Error("Please enter a valid LinkedIn profile URL or leave it empty.");
+      setProcessStep(1);
+      let id = resumeFileId;
+      let parsedData: ResumeParsedData | undefined;
       if (selectedFile) {
-        try {
-          const formData = new FormData();
-          formData.append("file", selectedFile);
-          const uploadRes = await fetch("/api/resumes/upload", {
-            method: "POST",
-            body: formData,
-          });
-          if (uploadRes.ok) {
-            const data = (await uploadRes.json()) as { fileId?: string };
-            if (data.fileId) setResumeFileId(data.fileId);
-          }
-        } catch {
-          // Gracefully continue with client session baseline during preview mode
-        }
+        const result = await importOnboardingResume(selectedFile, (progress) => setProcessStep(progress >= 35 ? 2 : 1));
+        id = result.resumeId;
+        parsedData = result.parsedData;
+        setResumeFileId(id);
       }
-
-      await new Promise((r) => setTimeout(r, 450));
-      setProcessStep(2); // Google XYZ atomization
-      await new Promise((r) => setTimeout(r, 450));
-      setProcessStep(3); // Categorizing technical competencies
-      await new Promise((r) => setTimeout(r, 400));
-
+      setProcessStep(3);
       onComplete({
-        resumeFileId: resumeFileId || "res-default",
-        fileName: fileName || "Resume.pdf",
-        fileSizeBytes: fileSizeBytes || 120000,
+        resumeFileId: id,
+        fileName,
+        fileSizeBytes,
         linkedinUrl: linkedinUrl.trim(),
         isScratchMode: false,
-      });
-    } catch {
-      setErrorMessage("Error processing document. Please try again.");
+      }, parsedData);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Error processing document. Please try again.");
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -146,16 +155,19 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
         <h1 className="text-2xl sm:text-3xl font-semibold text-[#16213A] tracking-tight mb-2">
           Import your career baseline,{" "}
           <span className="font-serif italic font-normal text-[#16213A]">
-            in sixty seconds.
+            at your pace.
           </span>
         </h1>
         <p className="text-sm text-[#5B6478] max-w-lg mx-auto">
-          Choose a resume and optionally add your LinkedIn profile to preview the setup flow.
+          Upload your resume or a PDF export of your LinkedIn profile, then review the extracted information.
         </p>
       </div>
 
       {/* Main Elevated Card */}
       <div className="bg-white border border-[#E5E1D8] rounded-2xl p-6 sm:p-8 shadow-xs">
+        {savedState === "loading" && <p role="status" className="mb-5 text-body-regular text-text-secondary">Checking for a saved resume…</p>}
+        {savedState === "error" && <div role="alert" className="mb-5 space-y-2"><p className="text-body-regular text-text-secondary">Could not check for a saved resume. You can retry or upload a PDF below.</p><Button variant="secondary" className="min-h-11" onClick={() => { setSavedState("loading"); setSavedRevision((v) => v + 1); }}>Retry saved resume</Button></div>}
+        {savedState === "ready" && savedResume && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border-button-default bg-background-secondary-default p-4"><div className="min-w-0"><h2 className="text-headline-medium text-text-primary">Continue with your saved resume</h2><p className="mt-2 break-words text-body-regular text-text-secondary">{savedResume.title}. Review the saved information without processing the PDF again.</p></div><Button variant="secondary" className="min-h-11" disabled={isProcessing} onClick={useSavedResume}>Use saved resume</Button></div>}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* File Dropzone */}
           <div>
@@ -183,7 +195,8 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.txt"
+                accept=".pdf"
+                disabled={isProcessing}
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
@@ -220,7 +233,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
                       <span className="text-[#2D5F8A] underline">browse</span>
                     </div>
                     <div className="text-xs text-[#5B6478] mt-1">
-                      Supports PDF, DOCX, or TXT up to 20MB
+                      Supports PDF up to 10 MB
                     </div>
                   </div>
                 </div>
@@ -246,6 +259,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
               <input
                 id="linkedin"
                 type="url"
+                disabled={isProcessing}
                 value={linkedinUrl}
                 onChange={(e) => setLinkedinUrl(e.target.value)}
                 placeholder="https://www.linkedin.com/in/username"
@@ -253,7 +267,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
               />
             </div>
             <p className="text-[11px] text-[#5B6478] mt-1.5">
-              Optional in this preview; the link is not checked.
+              Saved as a profile link. We do not import information from this URL. Upload a LinkedIn profile PDF to import its details.
             </p>
           </div>
 
@@ -262,7 +276,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
             <div className="p-4 bg-[#FFFFFF] rounded-xl border border-[#2D5F8A]/20 space-y-2.5 animate-fadeIn">
               <div className="flex items-center gap-2 text-xs font-semibold text-[#2D5F8A]">
                 <SpinnerGap size={16} className="animate-spin" />
-                <span>Preparing preview...</span>
+                <span>Processing your document...</span>
               </div>
               <div className="space-y-1.5 text-xs text-[#5B6478]">
                 <div
@@ -271,7 +285,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
                   }`}
                 >
                   <CheckCircle size={14} weight="fill" className="text-[#2D5F8A]" />
-                  <span>Preparing the next step...</span>
+                  <span>Uploading privately and waiting for the worker...</span>
                 </div>
                 <div
                   className={`flex items-center gap-2 transition-opacity ${
@@ -279,7 +293,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
                   }`}
                 >
                   <CheckCircle size={14} weight="fill" className="text-[#2D5F8A]" />
-                  <span>Loading example skills...</span>
+                  <span>Extracting your information...</span>
                 </div>
                 <div
                   className={`flex items-center gap-2 transition-opacity ${
@@ -287,7 +301,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
                   }`}
                 >
                   <CheckCircle size={14} weight="fill" className="text-[#2D5F8A]" />
-                  <span>Almost ready...</span>
+                  <span>Preparing your extracted skills for review...</span>
                 </div>
               </div>
             </div>
@@ -314,6 +328,7 @@ export function Step1Import({ initialData, onComplete }: Step1ImportProps) {
             <button
               type="button"
               onClick={handleScratchMode}
+              disabled={isProcessing}
               className="text-xs text-[#5B6478] hover:text-[#16213A] transition-colors order-2 sm:order-1 font-medium min-h-[44px] px-2 flex items-center"
             >
               I don&apos;t have a resume right now &mdash; start from scratch &rarr;

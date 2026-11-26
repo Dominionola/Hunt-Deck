@@ -1,38 +1,39 @@
 .mascotPose {
   position: absolute;
   inset: 0;
-  transform-origin: 50% 80%;
+  transform-origin: 50% 85%;
   animation: greeting 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .mascotImage {
   position: absolute;
-  width: 190%;
+  width: 172%;
   max-width: none;
   height: auto;
-  left: -43%;
-  top: -3%;
+  left: -36%;
+  top: -8%;
 }
 
 .skills, .targets, .reveal {
-  width: 330%;
-  top: -212%;
+  width: 295%;
+  top: -192%;
 }
 
-.skills { left: -4%; }
-.targets { left: -225%; }
-.reveal { left: -115%; }
+.skills { left: -6%; }
+.targets { left: -202%; }
+.reveal { left: -104%; }
 .celebrating { animation-name: celebrate; }
 
 @keyframes greeting {
-  0% { transform: rotate(-5deg) scale(.96); }
-  55% { transform: rotate(3deg) scale(1); }
-  100% { transform: rotate(0); }
+  0% { transform: translateY(2px) rotate(-4deg) scale(.97); }
+  50% { transform: translateY(-3px) rotate(3deg) scale(1.01); }
+  100% { transform: translateY(0) rotate(0) scale(1); }
 }
 
 @keyframes celebrate {
-  0% { transform: translateY(5px) rotate(-5deg) scale(.95); }
-  60% { transform: translateY(-3px) rotate(3deg); }
+  0% { transform: translateY(2px) rotate(-4deg) scale(.96); }
+  45% { transform: translateY(-8px) rotate(4deg) scale(1.04); }
+  75% { transform: translateY(1px) rotate(-1deg) scale(.98); }
   100% { transform: translateY(0) rotate(0) scale(1); }
 }
 

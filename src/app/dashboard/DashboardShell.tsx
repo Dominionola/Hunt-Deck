@@ -5,11 +5,12 @@ import { DashboardProvider } from "@/components/dashboard/DashboardContext";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { DashboardCommandPalette } from "@/components/dashboard/DashboardCommandPalette";
+import type { DashboardUser } from "@/lib/validations/dashboard";
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({ children, user }: { children: React.ReactNode; user: DashboardUser }) {
   return (
-    <DashboardProvider>
-      <div className="min-h-screen flex bg-[#FAF7F0] text-[#16213A] antialiased selection:bg-[#2D5F8A]/20 selection:text-[#16213A]">
+    <DashboardProvider user={user}>
+      <div className="min-h-screen flex bg-background-secondary-default text-text-primary antialiased">
         {/* Persistent Responsive Sidebar */}
         <Sidebar />
 

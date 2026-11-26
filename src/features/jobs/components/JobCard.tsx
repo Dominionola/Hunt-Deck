@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Buildings, MapPin, Sparkle, ArrowSquareOut, CheckCircle } from "@phosphor-icons/react";
+import { Buildings, MapPin, ArrowSquareOut, CheckCircle } from "@phosphor-icons/react";
+import { CompatibilityRating } from "@/components/application/compatibility-rating/compatibility-rating";
 
 export interface JobCardData {
   id: string;
@@ -12,6 +13,12 @@ export interface JobCardData {
   atsPlatform: string;
   applicationUrl: string;
   fitScore?: number;
+  fitBreakdown?: {
+    skillsScore: number;
+    experienceScore: number;
+    titleScore: number;
+    locationScore: number;
+  };
   matchingSkills?: string[];
   missingSkills?: string[];
   postedAt?: string | Date;
@@ -24,17 +31,13 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onSelect, onTailor }: JobCardProps) {
-  const score = job.fitScore ?? 84;
-  const isHighMatch = score >= 80;
-  const isMidMatch = score >= 60 && score < 80;
-
   return (
     <div
       onClick={() => onSelect(job)}
       className="group relative p-5 bg-white border border-[#E5E1D8] rounded-xl hover:border-[#2D5F8A]/50 transition-all duration-200 hover:shadow-xs cursor-pointer flex flex-col justify-between"
     >
       <div>
-        {/* Top Meta: Company + Platform + Score */}
+        {/* Top Meta: Company + Platform */}
         <div className="flex items-start justify-between gap-3 mb-2.5">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-lg bg-[#FAF7F0] border border-[#E5E1D8] flex items-center justify-center text-[#2D5F8A] font-semibold text-xs">
@@ -46,20 +49,6 @@ export function JobCard({ job, onSelect, onTailor }: JobCardProps) {
                 {job.title}
               </h3>
             </div>
-          </div>
-
-          {/* Match Score Badge */}
-          <div
-            className={`shrink-0 inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
-              isHighMatch
-                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                : isMidMatch
-                ? "bg-amber-50 text-amber-800 border-amber-200"
-                : "bg-slate-50 text-slate-700 border-slate-200"
-            }`}
-          >
-            <Sparkle size={12} weight="fill" />
-            <span>{score}% Match</span>
           </div>
         </div>
 
@@ -99,6 +88,24 @@ export function JobCard({ job, onSelect, onTailor }: JobCardProps) {
             )}
           </div>
         )}
+
+        <CompatibilityRating
+          score={job.fitScore}
+          label="Fit score"
+          unrankedLabel="Not scored"
+          explanation="Weighted fit across skills (40%), experience (30%), title (20%), and location (10%)."
+          factors={
+            job.fitBreakdown
+              ? [
+                  { label: "Skills", value: job.fitBreakdown.skillsScore, weight: "40%" },
+                  { label: "Experience", value: job.fitBreakdown.experienceScore, weight: "30%" },
+                  { label: "Title", value: job.fitBreakdown.titleScore, weight: "20%" },
+                  { label: "Location", value: job.fitBreakdown.locationScore, weight: "10%" },
+                ]
+              : undefined
+          }
+          className="mb-4"
+        />
       </div>
 
       {/* Footer Actions */}

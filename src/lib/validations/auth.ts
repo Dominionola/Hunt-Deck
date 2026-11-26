@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const authCallbackSchema = z.object({ code: z.string().min(1).max(4096) });
+
 export const signInSchema = z.object({
   email: z.string().email().max(254),
   password: z.string().min(1).max(1024),

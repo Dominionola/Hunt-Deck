@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Lock,
   EnvelopeSimple,
@@ -15,13 +15,16 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "@/components/base/toast/toast";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(searchParams.get("confirmation") === "failed"
+    ? "This confirmation link could not sign you in. Try signing in below if you have confirmed your email, or request a new confirmation email by signing up again. Open the new link in the same browser."
+    : null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,4 +210,8 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<p className="text-body-regular text-text-secondary">Loading sign in...</p>}><LoginForm /></Suspense>;
 }
