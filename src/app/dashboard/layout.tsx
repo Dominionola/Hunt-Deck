@@ -36,7 +36,7 @@ export default async function DashboardLayout({
 
   return (
     <div className={jakarta.className}>
-      <DashboardShell user={{ name: user.name, email: user.email, role: user.role }}>{children}</DashboardShell>
+      <DashboardShell user={{ name: user.name ?? null, email: user.email, role: user.role }}>{children}</DashboardShell>
     </div>
   );
 }

@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     const client = createClient(await cookies());
     const { data: authData, error } = await client.auth.signInWithPassword(parsed.data);
     if (error || !authData.user) {
-      return NextResponse.json({ 
-        error: error?.message || "Unable to sign in. Check your email and password, and confirm your email address first." 
+      return NextResponse.json({
+        error: error?.message || "Unable to sign in. Check your email and password, and confirm your email address first."
       }, { status: 401, headers: { "Cache-Control": "no-store" } });
     }
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       onboardingCompleted = false;
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       onboardingCompleted,
     }, { headers: { "Cache-Control": "no-store" } });
