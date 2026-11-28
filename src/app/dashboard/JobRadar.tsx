@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { RiArrowRightLine, RiExternalLinkLine, RiRefreshLine } from "@remixicon/react";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Chip } from "@/components/base/badges/chip";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
 import { Skeleton, SkeletonText } from "@/components/base/skeleton/skeleton";
 import { radarResponseSchema, type RadarJob } from "@/lib/validations/dashboard-radar";
-
-type RadarState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ready"; jobs: RadarJob[] };
 
 function formatArrangement(remoteType: RadarJob["remoteType"]): string | null {
   switch (remoteType) {
@@ -26,31 +21,27 @@ function formatArrangement(remoteType: RadarJob["remoteType"]): string | null {
   }
 }
 
-export function JobRadar() {
-  const [state, setState] = useState<RadarState>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
+async function fetchRadarJobs({ signal }: { signal: AbortSignal }): Promise<RadarJob[]> {
+  const response = await fetch("/api/jobs?limit=3&page=1", { signal });
+  if (!response.ok) throw new Error("Job listings unavailable");
+  const data = radarResponseSchema.parse(await response.json());
+  return data.items;
+}
 
-  useEffect(() => {
-    const controller = new AbortController();
-    async function loadJobs() {
-      try {
-        const response = await fetch("/api/jobs?limit=3&page=1", { signal: controller.signal });
-        if (!response.ok) throw new Error("Job listings unavailable");
-        const data = radarResponseSchema.parse(await response.json());
-        if (!controller.signal.aborted) setState({ status: "ready", jobs: data.items });
-      } catch {
-        if (!controller.signal.aborted) setState({ status: "error" });
-      }
-    }
-    void loadJobs();
-    return () => controller.abort();
-  }, [attempt]);
+export function JobRadar() {
+  const { data: jobs = [], isPending, isError, refetch } = useQuery({
+    queryKey: ["dashboard", "radar"],
+    queryFn: fetchRadarJobs,
+    staleTime: 2 * 60_000,
+  });
+
+  const status = isPending ? "loading" : isError ? "error" : "ready";
 
   return (
     <section
       className="min-w-0 rounded-3xl border border-border-button-default bg-background-primary-default p-5 sm:p-6"
       aria-labelledby="radar-title"
-      aria-busy={state.status === "loading"}
+      aria-busy={status === "loading"}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -66,7 +57,7 @@ export function JobRadar() {
         </ButtonLink>
       </div>
 
-      {state.status === "loading" && (
+      {status === "loading" && (
         <div role="status" aria-label="Loading recent opportunities" className="mt-5 grid gap-3 sm:grid-cols-3">
           {[0, 1, 2].map((index) => (
             <div
@@ -83,7 +74,7 @@ export function JobRadar() {
         </div>
       )}
 
-      {state.status === "error" && (
+      {status === "error" && (
         <div
           role="alert"
           className="mt-5 flex flex-col items-start gap-3 rounded-2xl border border-border-button-default bg-background-secondary-default p-5"
@@ -99,17 +90,14 @@ export function JobRadar() {
             variant="secondary"
             leadingIcon={RiRefreshLine}
             className="min-h-11"
-            onClick={() => {
-              setState({ status: "loading" });
-              setAttempt((value) => value + 1);
-            }}
+            onClick={() => void refetch()}
           >
             Try again
           </Button>
         </div>
       )}
 
-      {state.status === "ready" && state.jobs.length === 0 && (
+      {status === "ready" && jobs.length === 0 && (
         <div className="mt-5 flex flex-col items-start gap-3 rounded-2xl border border-border-button-default bg-background-secondary-default p-5">
           <strong className="text-headline-medium text-text-primary">
             No opportunities available yet.
@@ -123,9 +111,9 @@ export function JobRadar() {
         </div>
       )}
 
-      {state.status === "ready" && state.jobs.length > 0 && (
+      {status === "ready" && jobs.length > 0 && (
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {state.jobs.map((job) => {
+          {jobs.map((job) => {
             const arrangement = formatArrangement(job.remoteType);
             const postedLabel = new Intl.DateTimeFormat("en", {
               month: "short",

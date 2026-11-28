@@ -7,6 +7,8 @@ import {
   deriveFollowUpStatus,
   generateApplicationFollowUpSchedule,
   getActionableFollowUps,
+  safeDate,
+  formatDateIso,
 } from "../../src/services/followup/followUpScheduler";
 
 import {
@@ -116,6 +118,39 @@ describe("Phase 7: Application Follow-Up Engine (PRD Module 13)", () => {
       assert.equal(actionable.length, 2);
       assert.equal(actionable[0].companyName, "Stripe"); // most overdue first (-2)
       assert.equal(actionable[1].companyName, "Linear"); // due today (0)
+    });
+
+    it("resiliently handles non-parseable and human-friendly dates without RangeError", () => {
+      // 1. safeDate helper
+      const fallback = new Date("2026-11-20T00:00:00Z");
+      assert.equal(safeDate("Just now", fallback).toISOString(), fallback.toISOString());
+      assert.equal(safeDate("invalid-string", fallback).toISOString(), fallback.toISOString());
+      assert.equal(safeDate(null, fallback).toISOString(), fallback.toISOString());
+      assert.equal(safeDate(undefined, fallback).toISOString(), fallback.toISOString());
+
+      // 2. formatDateIso on invalid date
+      const invalidDate = new Date("invalid");
+      const formatted = formatDateIso(invalidDate);
+      assert.match(formatted, /^\d{4}-\d{2}-\d{2}$/);
+
+      // 3. generateApplicationFollowUpSchedule with "Just now"
+      const appWithJustNow = {
+        id: "app_just_now",
+        company: "Ivanti",
+        role: "Full-Stack Web Developer",
+        appliedDate: "Just now",
+        contact: {
+          name: "Recruiter",
+          email: "recruiter@ivanti.com",
+        },
+      };
+
+      const now = new Date("2026-11-27T12:00:00Z");
+      const schedule = generateApplicationFollowUpSchedule(appWithJustNow, now);
+      assert.equal(schedule.length, 2);
+      assert.equal(schedule[0].type, "FOLLOW_UP_1");
+      assert.equal(schedule[0].companyName, "Ivanti");
+      assert.match(schedule[0].scheduledDate, /^\d{4}-\d{2}-\d{2}$/);
     });
   });
 

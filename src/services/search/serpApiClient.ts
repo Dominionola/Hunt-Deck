@@ -167,6 +167,16 @@ export async function executeDorkSearch(query: string): Promise<SerpSearchRespon
   const apiKey = process.env.SERPAPI_API_KEY;
 
   if (!apiKey || apiKey === "dummy-key") {
+    const isUnitTest =
+      process.env.NODE_ENV === "test" || Boolean(process.env.NODE_TEST_CONTEXT);
+    if (!isUnitTest) {
+      return {
+        query,
+        totalResults: 0,
+        results: [],
+        cached: false,
+      };
+    }
     const mockResults = generateDeterministicResults(query);
     IN_MEMORY_CACHE.set(cacheKey, { timestamp: Date.now(), data: mockResults });
     return {

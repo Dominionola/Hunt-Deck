@@ -181,15 +181,21 @@ export function OutreachModal({
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <a
-                  href={contact.linkedinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-[#2D5F8A] hover:underline font-semibold"
-                >
-                  <PaperPlaneTilt size={13} />
-                  <span>Open {contact.fullName}&apos;s Profile</span>
-                </a>
+                {contact.linkedinUrl ? (
+                  <a
+                    href={contact.linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-[#2D5F8A] hover:underline font-semibold"
+                  >
+                    <PaperPlaneTilt size={13} />
+                    <span>Open {contact.fullName}&apos;s Profile</span>
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-[#5B6478]">
+                    Direct contact extracted from posting
+                  </span>
+                )}
 
                 <button
                   type="button"

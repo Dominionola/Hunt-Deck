@@ -27,8 +27,9 @@ export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
+    const requestOrigin = origin || new URL(request.url).origin;
 
-    const result = await registerAccount(parsed.data, new URL("/auth/callback", request.url).toString(), supabase.auth);
+    const result = await registerAccount(parsed.data, new URL("/auth/callback", requestOrigin).toString(), supabase.auth);
     if (result.error) {
       return NextResponse.json(
         { error: result.error },

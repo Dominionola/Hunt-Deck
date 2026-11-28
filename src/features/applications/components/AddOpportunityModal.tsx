@@ -25,6 +25,7 @@ export function AddOpportunityModal({
   const [salary, setSalary] = useState("$180,000 - $220,000");
   const [fitScore, setFitScore] = useState(90);
   const [stage, setStage] = useState<PipelineStage>(initialStage);
+  const [portalUrl, setPortalUrl] = useState("");
   const [initialNote, setInitialNote] = useState("");
 
   if (!isOpen) return null;
@@ -38,6 +39,9 @@ export function AddOpportunityModal({
       return;
     }
 
+    const trimmedUrl = portalUrl.trim();
+    const validPortalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : undefined;
+
     const newApp: PipelineApplication = {
       id: `app-custom-${Date.now()}`,
       company: company.trim(),
@@ -49,6 +53,7 @@ export function AddOpportunityModal({
       stage,
       notes: initialNote.trim() ? [initialNote.trim()] : ["Manually added to pipeline."],
       tags: ["Target Opportunity", "Custom Entry"],
+      portalUrl: validPortalUrl,
       source: "direct",
       appliedDate: stage === "applied" ? "Just now" : undefined,
     };
@@ -217,16 +222,30 @@ export function AddOpportunityModal({
             </div>
           </div>
 
+          {/* Application Link (URL) */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-[#16213A] uppercase tracking-wider">
+              Application / Posting URL
+            </label>
+            <input
+              type="url"
+              value={portalUrl}
+              onChange={(e) => setPortalUrl(e.target.value)}
+              placeholder="https://boards.greenhouse.io/company/jobs/123"
+              className="w-full px-3 py-2 text-xs rounded-xl border border-[#E5E1D8] bg-[#FAF7F0] text-[#16213A] focus:outline-none focus:ring-2 focus:ring-[#2D5F8A]"
+            />
+          </div>
+
           {/* Initial Note */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-[#16213A] uppercase tracking-wider">
-              Initial Note / Job URL
+              Initial Note
             </label>
             <textarea
               rows={2}
               value={initialNote}
               onChange={(e) => setInitialNote(e.target.value)}
-              placeholder="Paste job link, referral info, or recruiter notes…"
+              placeholder="Referral info, recruiter notes, or interview prep reminders…"
               className="w-full px-3 py-2 text-xs rounded-xl border border-[#E5E1D8] bg-[#FAF7F0] text-[#16213A] focus:outline-none focus:ring-2 focus:ring-[#2D5F8A] resize-none"
             />
           </div>

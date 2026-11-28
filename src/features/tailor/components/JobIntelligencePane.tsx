@@ -24,6 +24,7 @@ import {
   getCompatibilityTier,
 } from "@/components/application/compatibility-rating/compatibility-rating";
 import { TARGET_JOBS_CATALOG } from "../mockData";
+import { CompanyContactsCard } from "@/features/jobs/components/CompanyContactsCard";
 
 interface JobIntelligencePaneProps {
   currentJob: TailorTargetJob;
@@ -40,7 +41,7 @@ export function JobIntelligencePane({
   onSelectJob,
   gapSkills,
 }: JobIntelligencePaneProps) {
-  const [activeTab, setActiveTab] = useState<"decomposition" | "intelligence">("decomposition");
+  const [activeTab, setActiveTab] = useState<"decomposition" | "intelligence" | "contacts">("decomposition");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const selectableJobs =
     availableJobs && availableJobs.length > 0
@@ -151,10 +152,10 @@ export function JobIntelligencePane({
         </div>
       </div>
 
-      {/* Secondary Tab Switcher: JD Decomposition vs Pre-Gen Intelligence */}
+      {/* Secondary Tab Switcher: JD Decomposition vs Pre-Gen Intelligence vs Contacts */}
       <Tabs
         selectedKey={activeTab}
-        onSelectionChange={(key) => setActiveTab(key as "decomposition" | "intelligence")}
+        onSelectionChange={(key) => setActiveTab(key as "decomposition" | "intelligence" | "contacts")}
       >
         <TabList aria-label="Target job details">
           <Tab id="decomposition" className="min-h-11">
@@ -162,6 +163,9 @@ export function JobIntelligencePane({
           </Tab>
           <Tab id="intelligence" className="min-h-11">
             Company Context Brief
+          </Tab>
+          <Tab id="contacts" className="min-h-11">
+            Key Contacts &amp; Outreach
           </Tab>
         </TabList>
 
@@ -303,6 +307,17 @@ export function JobIntelligencePane({
                 ))}
               </ul>
             </div>
+          </div>
+        </TabPanel>
+
+        {/* Tab 3: Key Contacts & Outreach */}
+        <TabPanel id="contacts">
+          <div className="flex flex-col gap-3">
+            <CompanyContactsCard
+              companyName={currentJob.company}
+              roleTitle={currentJob.title}
+              jobDescription={currentJob.description}
+            />
           </div>
         </TabPanel>
       </Tabs>

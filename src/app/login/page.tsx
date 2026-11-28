@@ -18,17 +18,47 @@ import { toast } from "@/components/base/toast/toast";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(searchParams.get("confirmation") === "failed");
+  const [isResending, setIsResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(searchParams.get("confirmation") === "failed"
-    ? "This confirmation link could not sign you in. Try signing in below if you have confirmed your email, or request a new confirmation email by signing up again. Open the new link in the same browser."
+    ? "This confirmation link could not sign you in automatically. If you already verified in another app or browser, enter your password below, or resend a fresh confirmation link."
     : null);
+
+  const handleResendConfirmation = async () => {
+    if (!email.trim() || isResending) {
+      setErrorMessage("Enter your email address below first, then click Resend verification link.");
+      return;
+    }
+    setIsResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErrorMessage(data.error || "Unable to resend confirmation email.");
+      } else {
+        toast.success("Verification Link Sent", {
+          description: `Sent a new confirmation link to ${email.trim()}. Check your inbox and spam folder.`,
+        });
+      }
+    } catch {
+      setErrorMessage("Network error while resending confirmation link.");
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setEmailNotConfirmed(false);
 
     if (!email || !password) {
       setErrorMessage("Please enter both your email and password.");
@@ -44,10 +74,17 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        error?: string;
+        emailNotConfirmed?: boolean;
+        onboardingCompleted?: boolean;
+      };
 
       if (!response.ok) {
         setErrorMessage(data.error || "Invalid email or password.");
+        if (data.emailNotConfirmed) {
+          setEmailNotConfirmed(true);
+        }
         setIsLoading(false);
         return;
       }
@@ -102,10 +139,22 @@ function LoginForm() {
           {errorMessage && (
             <div
               role="alert"
-              className="mb-6 p-4 rounded-xl bg-rose-50/90 border border-rose-200/80 text-rose-900 text-xs flex items-start gap-2.5 animate-in fade-in duration-150"
+              className="mb-6 p-4 rounded-xl bg-rose-50/90 border border-rose-200/80 text-rose-900 text-xs space-y-2.5 animate-in fade-in duration-150"
             >
-              <WarningCircle size={18} weight="fill" className="shrink-0 mt-0.5 text-rose-600" />
-              <span className="leading-relaxed font-medium">{errorMessage}</span>
+              <div className="flex items-start gap-2.5">
+                <WarningCircle size={18} weight="fill" className="shrink-0 mt-0.5 text-rose-600" />
+                <span className="leading-relaxed font-medium">{errorMessage}</span>
+              </div>
+              {emailNotConfirmed && (
+                <button
+                  type="button"
+                  disabled={isResending}
+                  onClick={() => void handleResendConfirmation()}
+                  className="ml-6 inline-flex items-center min-h-[36px] px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-900 font-semibold hover:bg-rose-100/60 transition-colors cursor-pointer"
+                >
+                  {isResending ? "Sending..." : "Resend verification email"}
+                </button>
+              )}
             </div>
           )}
 

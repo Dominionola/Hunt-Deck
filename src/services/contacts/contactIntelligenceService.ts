@@ -18,7 +18,7 @@ export interface EnrichedContact extends DiscoveredContact {
   emailPatternUsed: string;
   confidenceTier: EmailConfidenceTier;
   confidenceScore: number; // 0 - 100
-  source: "hunter_io" | "apollo_io" | "pattern_inferred";
+  source: "job_description" | "hunter_io" | "apollo_io" | "pattern_inferred";
   isDismissed: boolean;
 }
 
@@ -43,19 +43,54 @@ const KNOWN_DOMAIN_PATTERNS: Record<
   posthog: { domain: "posthog.com", pattern: "{first}", source: "hunter_io" },
   supabase: { domain: "supabase.com", pattern: "{first}", source: "hunter_io" },
   replit: { domain: "replit.com", pattern: "{first}", source: "hunter_io" },
+  linear: { domain: "linear.app", pattern: "{first}", source: "hunter_io" },
+  resend: { domain: "resend.com", pattern: "{first}", source: "hunter_io" },
+  cursor: { domain: "anysphere.inc", pattern: "{first}", source: "hunter_io" },
+  clerk: { domain: "clerk.com", pattern: "{first}", source: "hunter_io" },
+  modal: { domain: "modal.com", pattern: "{first}", source: "hunter_io" },
+  langchain: { domain: "langchain.dev", pattern: "{first}", source: "hunter_io" },
+  anthropic: { domain: "anthropic.com", pattern: "{first}", source: "hunter_io" },
+  openai: { domain: "openai.com", pattern: "{first}", source: "hunter_io" },
+  figma: { domain: "figma.com", pattern: "{first}", source: "hunter_io" },
+  notion: { domain: "makenotion.com", pattern: "{first}", source: "hunter_io" },
+  cloudflare: { domain: "cloudflare.com", pattern: "{f}{last}", source: "hunter_io" },
+  databricks: { domain: "databricks.com", pattern: "{first}.{last}", source: "hunter_io" },
+  airbnb: { domain: "airbnb.com", pattern: "{first}.{last}", source: "hunter_io" },
+  shopify: { domain: "shopify.com", pattern: "{first}.{last}", source: "hunter_io" },
+  netflix: { domain: "netflix.com", pattern: "{f}{last}", source: "hunter_io" },
+  coinbase: { domain: "coinbase.com", pattern: "{first}.{last}", source: "hunter_io" },
+  docker: { domain: "docker.com", pattern: "{first}.{last}", source: "hunter_io" },
+  moniepoint: { domain: "moniepoint.com", pattern: "{first}.{last}", source: "apollo_io" },
   google: { domain: "google.com", pattern: "{first}{last}", source: "hunter_io" },
   meta: { domain: "meta.com", pattern: "{first}{last}", source: "hunter_io" },
   amazon: { domain: "amazon.com", pattern: "{first}{l}", source: "hunter_io" },
 };
 
 /**
- * Normalizes company name into primary web domain
+ * Normalizes company name into primary web domain, or returns null if confidential/opaque
  */
 export function resolveCompanyDomain(companyName: string): string {
-  const clean = companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const trimmed = companyName.trim();
+  const isOpaque = /^[a-f0-9]{10,32}$/i.test(trimmed) || /^[0-9]+$/.test(trimmed) || trimmed.toLowerCase() === "confidential employer";
+  if (isOpaque || !trimmed) return "";
+
+  const clean = trimmed.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!clean) return "";
   const known = KNOWN_DOMAIN_PATTERNS[clean];
   if (known) return known.domain;
   return `${clean}.com`;
+}
+
+/**
+ * Resolves the official LinkedIn company page URL or empty string if opaque/confidential
+ */
+export function resolveCompanyLinkedInUrl(companyName: string): string {
+  const trimmed = companyName.trim();
+  const isOpaque = /^[a-f0-9]{10,32}$/i.test(trimmed) || /^[0-9]+$/.test(trimmed) || trimmed.toLowerCase() === "confidential employer";
+  if (isOpaque || !trimmed) return "";
+  const slug = trimmed.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!slug) return "";
+  return `https://www.linkedin.com/company/${encodeURIComponent(slug)}`;
 }
 
 /**
@@ -84,25 +119,176 @@ export function formatEmailWithPattern(
   return `${localPart}@${domain}`;
 }
 
+const IGNORED_EMAIL_DOMAINS = new Set([
+  "example.com",
+  "greenhouse.io",
+  "lever.co",
+  "ashbyhq.com",
+  "myworkdayjobs.com",
+  "workday.com",
+  "sentry.io",
+  "w3.org",
+  "schema.org",
+]);
+
+const GENERIC_LOCAL_PARTS = new Set([
+  "careers",
+  "jobs",
+  "hiring",
+  "talent",
+  "recruiting",
+  "recruitment",
+  "hr",
+  "people",
+  "hello",
+  "info",
+  "contact",
+  "team",
+  "support",
+  "apply",
+]);
+
 /**
- * Enriches discovered contacts with predicted corporate email addresses
+ * Extracts verified direct contact emails written inside a job description.
+ */
+export function extractDirectEmailsFromDescription(description?: string): string[] {
+  if (!description) return [];
+  const matches = description.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? [];
+  const unique = new Set<string>();
+
+  for (const raw of matches) {
+    const email = raw.toLowerCase().trim();
+    const [local, domain] = email.split("@");
+    if (!local || !domain) continue;
+    if (local.includes("noreply") || local.includes("no-reply") || local.includes("donotreply")) {
+      continue;
+    }
+    if (IGNORED_EMAIL_DOMAINS.has(domain)) continue;
+    unique.add(email);
+    if (unique.size >= 5) break;
+  }
+
+  return Array.from(unique);
+}
+
+/**
+ * Detects opaque hex/UUID ATS board slugs (e.g. "a3c41b8b71eff8c4") and resolves
+ * the real company name from job description context or extracted email domain.
+ */
+export function resolveDisplayCompanyName(companyName: string, description?: string): string {
+  const trimmed = companyName.trim();
+  const isOpaqueHash = /^[a-f0-9]{10,32}$/i.test(trimmed) || /^[0-9]+$/.test(trimmed);
+  if (!isOpaqueHash) return trimmed;
+
+  if (description) {
+    // 1. Direct company intro patterns: "About Ivanti", "Join Ivanti", "Welcome to Ivanti", "At Ivanti, we..."
+    const aboutMatch = description.match(
+      /(?:About|Join|Welcome to|At)\s+([A-Z][A-Za-z0-9&.\- ]{1,36}?)(?:\s+(?:is|are|was|we|our|team|at)\b|[.,:\n])/i
+    );
+    if (aboutMatch?.[1]) {
+      const candidate = aboutMatch[1].trim();
+      if (candidate.length >= 2 && !/^(the|our|this|a|us|all|we)$/i.test(candidate)) {
+        return candidate;
+      }
+    }
+
+    // 2. "Company is seeking / looking for / hiring" pattern
+    const hiringMatch = description.match(
+      /([A-Z][A-Za-z0-9&.\- ]{1,36}?)\s+is (?:looking for|hiring|seeking)\b/
+    );
+    if (hiringMatch?.[1]) {
+      const candidate = hiringMatch[1].trim();
+      if (candidate.length >= 2 && !/^(the|our|this|a|us|team)$/i.test(candidate)) {
+        return candidate;
+      }
+    }
+
+    // 3. Direct email domain extraction (e.g., talent@ivanti.com -> Ivanti)
+    const emails = extractDirectEmailsFromDescription(description);
+    if (emails.length > 0) {
+      const domainBase = emails[0].split("@")[1]?.split(".")[0];
+      if (domainBase && domainBase.length >= 2 && !/^(gmail|yahoo|outlook|hotmail|proton|icloud)$/i.test(domainBase)) {
+        return domainBase.charAt(0).toUpperCase() + domainBase.slice(1);
+      }
+    }
+
+    // 4. Copyright footer: "© 2026 Ivanti, Inc."
+    const copyrightMatch = description.match(
+      /(?:©|Copyright)\s*(?:\d{4})?\s*([A-Z][A-Za-z0-9&.\- ]{1,36}?)(?:\s+(?:Inc|LLC|Corp|Corporation|Ltd|Limited|Technologies))?\b/i
+    );
+    if (copyrightMatch?.[1]) {
+      const candidate = copyrightMatch[1].trim();
+      if (candidate.length >= 2 && !/^(all|the|our)$/i.test(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return "Confidential Employer";
+}
+
+function inferNameFromEmail(email: string, companyName: string): string {
+  const local = email.split("@")[0] ?? "";
+  if (GENERIC_LOCAL_PARTS.has(local.toLowerCase())) {
+    return `${companyName} Hiring Team`;
+  }
+  const tokens = local.split(/[._-]+/).filter((t) => t.length > 1 && /^[a-z]+$/i.test(t));
+  if (tokens.length >= 2) {
+    return tokens
+      .slice(0, 2)
+      .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+      .join(" ");
+  }
+  return `${companyName} Direct Contact`;
+}
+
+/**
+ * Enriches discovered contacts with direct JD emails and predicted corporate email addresses
  */
 export async function enrichCompanyContacts(
   companyName: string,
-  roleTitle: string
+  roleTitle: string,
+  jobDescription?: string
 ): Promise<EnrichedContact[]> {
-  const domain = resolveCompanyDomain(companyName);
-  const cleanKey = companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const resolvedCompany = resolveDisplayCompanyName(companyName, jobDescription);
+  const directEmails = extractDirectEmailsFromDescription(jobDescription);
+  const directContacts: EnrichedContact[] = directEmails.map((email, idx) => ({
+    id: `jd-contact-${idx + 1}`,
+    fullName: inferNameFromEmail(email, resolvedCompany),
+    title: "Direct Contact (From Job Description)",
+    companyName: resolvedCompany,
+    linkedinUrl: "",
+    roleType: "hiring_manager",
+    department: "Recruiting & Hiring",
+    summarySnippet: `Listed directly in the ${roleTitle} job posting.`,
+    email,
+    emailPatternUsed: "direct_jd_match",
+    confidenceTier: "verified",
+    confidenceScore: 99,
+    source: "job_description",
+    isDismissed: false,
+  }));
+
+  // If the stored company name is still an opaque board ID and we couldn't resolve a real name/domain,
+  // avoid querying or fabricating bogus emails like @a3c41b8b71eff8c4.com.
+  const isStillOpaque = /^[a-f0-9]{10,32}$/i.test(resolvedCompany) || resolvedCompany === "Confidential Employer";
+  if (isStillOpaque) {
+    return directContacts;
+  }
+
+  const emailDomain = directEmails[0]?.split("@")[1];
+  const domain = emailDomain || resolveCompanyDomain(resolvedCompany);
+  const cleanKey = resolvedCompany.toLowerCase().replace(/[^a-z0-9]/g, "");
   const knownConfig = KNOWN_DOMAIN_PATTERNS[cleanKey];
 
   const pattern = knownConfig ? knownConfig.pattern : "{first}.{last}";
   const source = knownConfig ? knownConfig.source : "pattern_inferred";
 
-  // Step 1: Discover LinkedIn profiles via Dorks
-  const discovered = await discoverKeyContacts(companyName, roleTitle);
+  // Step 1: Discover LinkedIn profiles via Dorks (server-side SerpAPI when configured)
+  const discovered = await discoverKeyContacts(resolvedCompany, roleTitle);
 
   // Step 2: Enrich with inferred/verified emails
-  return discovered.map((contact, idx) => {
+  const enrichedDorkContacts: EnrichedContact[] = discovered.map((contact, idx) => {
     const email = formatEmailWithPattern(contact.fullName, domain, pattern);
 
     const isVerified = Boolean(knownConfig && knownConfig.source === "hunter_io" && idx === 0);
@@ -125,6 +311,12 @@ export async function enrichCompanyContacts(
       isDismissed: false,
     };
   });
+
+  const seenEmails = new Set(directContacts.map((c) => c.email.toLowerCase()));
+  return [
+    ...directContacts,
+    ...enrichedDorkContacts.filter((c) => !seenEmails.has(c.email.toLowerCase())),
+  ];
 }
 
 /**

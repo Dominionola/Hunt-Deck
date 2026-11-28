@@ -2,6 +2,7 @@ import { it } from "node:test";
 import assert from "node:assert/strict";
 import { registerAccount } from "../../src/services/auth/registrationService";
 import { GET as confirmationCallback } from "../../src/app/auth/callback/route";
+import { authCallbackSchema, resendConfirmationSchema } from "../../src/lib/validations/auth";
 
 const input = { email: "synthetic@example.invalid", password: "synthetic-test-password", fullName: "Synthetic Candidate" };
 type Auth = Parameters<typeof registerAccount>[2];
@@ -41,4 +42,17 @@ it("rejects missing confirmation codes and ignores external redirect parameters"
   const response = await confirmationCallback(new Request("http://localhost:3000/auth/callback?next=https://example.invalid"));
   assert.equal(response.headers.get("location"), "http://localhost:3000/login?confirmation=failed");
   assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+it("validates both PKCE code and Supabase OTP token_hash callback parameters", () => {
+  assert.equal(authCallbackSchema.safeParse({ code: "pkce_code_123" }).success, true);
+  assert.equal(
+    authCallbackSchema.safeParse({ token_hash: "hash_abc", type: "signup" }).success,
+    true
+  );
+  assert.equal(authCallbackSchema.safeParse({ token_hash: "hash_abc" }).success, false);
+  assert.equal(authCallbackSchema.safeParse({}).success, false);
+
+  assert.equal(resendConfirmationSchema.safeParse({ email: "alex@example.com" }).success, true);
+  assert.equal(resendConfirmationSchema.safeParse({ email: "not-an-email" }).success, false);
 });

@@ -18,9 +18,12 @@ import {
 
 import {
   resolveCompanyDomain,
+  resolveCompanyLinkedInUrl,
   formatEmailWithPattern,
   enrichCompanyContacts,
   generateOutreachDraft,
+  extractDirectEmailsFromDescription,
+  resolveDisplayCompanyName,
 } from "../../src/services/contacts/contactIntelligenceService";
 
 describe("Phase 4: Google Dork Crawler & Contact Intelligence", () => {
@@ -233,6 +236,29 @@ describe("Phase 4: Google Dork Crawler & Contact Intelligence", () => {
       );
       assert.ok(draft.linkedInInMailNote.includes("Hi Sarah"));
       assert.ok(draft.linkedInInMailNote.includes("Staff Systems Engineer"));
+    });
+
+    test("extracts direct emails and resolves opaque hex Greenhouse board slugs from job description", async () => {
+      const jd = "About Acme Cloud: We build distributed databases. Reach out to jane.doe@acmecloud.io or noreply@greenhouse.io.";
+      assert.strictEqual(resolveDisplayCompanyName("a3c41b8b71eff8c4", jd), "Acme Cloud");
+      assert.deepStrictEqual(extractDirectEmailsFromDescription(jd), ["jane.doe@acmecloud.io"]);
+
+      // Test extra pattern heuristics
+      const hiringJd = "Ivanti is looking for a Full-Stack Web Developer. Email talent@ivanti.com for questions.";
+      assert.strictEqual(resolveDisplayCompanyName("a3c41b8b71eff8c4", hiringJd), "Ivanti");
+
+      // Test LinkedIn and Domain resolution
+      assert.strictEqual(resolveCompanyLinkedInUrl("Ivanti"), "https://www.linkedin.com/company/ivanti");
+      assert.strictEqual(resolveCompanyLinkedInUrl("a3c41b8b71eff8c4"), "");
+      assert.strictEqual(resolveCompanyLinkedInUrl("Confidential Employer"), "");
+      assert.strictEqual(resolveCompanyDomain("a3c41b8b71eff8c4"), "");
+      assert.strictEqual(resolveCompanyDomain("Confidential Employer"), "");
+
+      const contacts = await enrichCompanyContacts("a3c41b8b71eff8c4", "Platform Engineer", jd);
+      assert.strictEqual(contacts[0].email, "jane.doe@acmecloud.io");
+      assert.strictEqual(contacts[0].source, "job_description");
+      assert.strictEqual(contacts[0].confidenceTier, "verified");
+      assert.strictEqual(contacts[0].companyName, "Acme Cloud");
     });
   });
 });

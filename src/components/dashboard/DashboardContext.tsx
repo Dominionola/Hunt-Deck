@@ -1,9 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { dashboardMetricsSchema, type DashboardMetrics, type DashboardUser } from "@/lib/validations/dashboard";
 
-export type MetricsState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: DashboardMetrics };
+export type MetricsState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; data: DashboardMetrics };
+
 interface DashboardContextType {
   user: DashboardUser;
   metrics: MetricsState;
@@ -16,40 +21,77 @@ interface DashboardContextType {
   setMobileMenuOpen: (open: boolean) => void;
   toggleMobileMenu: () => void;
 }
+
 const DashboardContext = createContext<DashboardContextType | null>(null);
 
+async function fetchDashboardMetrics({ signal }: { signal: AbortSignal }): Promise<DashboardMetrics> {
+  const response = await fetch("/api/dashboard/metrics", { signal });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 401
+        ? "Your session expired. Sign in again to load your workspace."
+        : "Your dashboard could not be loaded. Please retry."
+    );
+  }
+  const parsed = dashboardMetricsSchema.safeParse(await response.json());
+  if (!parsed.success) {
+    throw new Error("Your dashboard could not be loaded. Please retry.");
+  }
+  return parsed.data;
+}
+
 export function DashboardProvider({ children, user }: { children: React.ReactNode; user: DashboardUser }) {
+  const queryClient = useQueryClient();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [metrics, setMetrics] = useState<MetricsState>({ status: "loading" });
-  const [revision, setRevision] = useState(0);
-  const refreshMetrics = useCallback(() => { setMetrics({ status: "loading" }); setRevision((v) => v + 1); }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    void (async () => {
-      try {
-        const response = await fetch("/api/dashboard/metrics", { cache: "no-store", signal: controller.signal });
-        if (!response.ok) throw new Error(response.status === 401 ? "Your session expired. Sign in again to load your workspace." : "Your dashboard could not be loaded. Please retry.");
-        const parsed = dashboardMetricsSchema.safeParse(await response.json());
-        if (!parsed.success) throw new Error("Your dashboard could not be loaded. Please retry.");
-        if (!controller.signal.aborted) setMetrics({ status: "ready", data: parsed.data });
-      } catch (error) {
-        if (!controller.signal.aborted) setMetrics({ status: "error", message: error instanceof Error ? error.message : "Your dashboard could not be loaded. Please retry." });
-      } finally { clearTimeout(timeout); }
-    })();
-    const onTimeout = () => setMetrics({ status: "error", message: "Your dashboard took too long to load. Please retry." });
-    controller.signal.addEventListener("abort", onTimeout);
-    return () => { controller.signal.removeEventListener("abort", onTimeout); clearTimeout(timeout); controller.abort(); };
-  }, [revision]);
+
+  const metricsQuery = useQuery({
+    queryKey: ["dashboard", "metrics"],
+    queryFn: fetchDashboardMetrics,
+    staleTime: 60_000,
+  });
+
+  const refreshMetrics = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["dashboard", "metrics"] });
+  }, [queryClient]);
+
+  const metrics: MetricsState = useMemo(() => {
+    if (metricsQuery.isPending) return { status: "loading" };
+    if (metricsQuery.isError) {
+      return {
+        status: "error",
+        message:
+          metricsQuery.error instanceof Error
+            ? metricsQuery.error.message
+            : "Your dashboard could not be loaded. Please retry.",
+      };
+    }
+    return { status: "ready", data: metricsQuery.data };
+  }, [metricsQuery.isPending, metricsQuery.isError, metricsQuery.error, metricsQuery.data]);
+
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setCommandPaletteOpen(false), []);
   const toggleMobileMenu = useCallback(() => setMobileMenuOpen((prev) => !prev), []);
-  const value = useMemo(() => ({ user, metrics, refreshMetrics, commandPaletteOpen, setCommandPaletteOpen,
-    openCommandPalette, closeCommandPalette, mobileMenuOpen, setMobileMenuOpen, toggleMobileMenu }),
-    [user, metrics, refreshMetrics, commandPaletteOpen, mobileMenuOpen, openCommandPalette, closeCommandPalette, toggleMobileMenu]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      metrics,
+      refreshMetrics,
+      commandPaletteOpen,
+      setCommandPaletteOpen,
+      openCommandPalette,
+      closeCommandPalette,
+      mobileMenuOpen,
+      setMobileMenuOpen,
+      toggleMobileMenu,
+    }),
+    [user, metrics, refreshMetrics, commandPaletteOpen, mobileMenuOpen, openCommandPalette, closeCommandPalette, toggleMobileMenu]
+  );
+
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
 }
+
 export function useDashboard() {
   const context = useContext(DashboardContext);
   if (!context) throw new Error("useDashboard must be used within a DashboardProvider");

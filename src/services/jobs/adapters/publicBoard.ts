@@ -17,6 +17,49 @@ const ashby = z.object({ id: z.string().min(1).max(150), title: z.string().min(1
 export class BoardRequestError extends Error {
   constructor(public readonly transient: boolean) { super("Public job source unavailable."); }
 }
+export function safeHttpsUrl(candidate: string | null | undefined): string | null {
+  if (!candidate || typeof candidate !== "string") return null;
+  const trimmed = candidate.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+export async function readBoundedJson(response: Response): Promise<unknown> {
+  if (!response.ok) {
+    throw new BoardRequestError(response.status === 429 || response.status >= 500);
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new BoardRequestError(false);
+
+  const decoder = new TextDecoder();
+  let body = "";
+  let bytes = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > 4 * 1024 * 1024) {
+        await reader.cancel();
+        throw new BoardRequestError(false);
+      }
+      body += decoder.decode(value, { stream: true });
+    }
+    body += decoder.decode();
+  } catch (error) {
+    throw error instanceof BoardRequestError ? error : new BoardRequestError(true);
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new BoardRequestError(false);
+  }
+}
 export function plainJobText(text: string) {
   // Decode common board escapes before stripping markup; content is rendered only as text.
   return text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")

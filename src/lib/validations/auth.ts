@@ -1,6 +1,18 @@
 import { z } from "zod";
 
-export const authCallbackSchema = z.object({ code: z.string().min(1).max(4096) });
+export const authCallbackSchema = z.object({
+  code: z.string().min(1).max(4096).optional(),
+  token_hash: z.string().min(1).max(4096).optional(),
+  type: z.enum(["signup", "email", "recovery", "invite", "magiclink", "email_change"]).optional(),
+}).refine(
+  (val) => Boolean(val.code) || (Boolean(val.token_hash) && Boolean(val.type)),
+  "Confirmation code or token hash is required."
+);
+
+export const resendConfirmationSchema = z.object({
+  email: z.string().email("Please enter a valid email address.").max(254),
+}).strict();
+export type ResendConfirmationInput = z.infer<typeof resendConfirmationSchema>;
 
 export const signInSchema = z.object({
   email: z.string().email().max(254),

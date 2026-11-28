@@ -5,6 +5,7 @@ import type {
 } from "@/lib/validations/application";
 import type { PipelineApplication, PipelineStage } from "@/features/applications/types";
 import { ApplicationStatus, RemotePreference, AtsPlatform } from "@prisma/client";
+import { resolveDisplayCompanyName } from "@/services/contacts/contactIntelligenceService";
 
 type PipelineMetadata = Partial<Pick<PipelineApplication,
   "stage" | "workArrangement" | "salary" | "fitScore" | "followUpDueDate" |
@@ -39,6 +40,7 @@ export function toPipelineApplication(app: {
     company: string;
     title: string;
     location: string | null;
+    description?: string | null;
     remoteType: RemotePreference;
     applicationUrl: string;
     atsPlatform: AtsPlatform;
@@ -72,7 +74,7 @@ export function toPipelineApplication(app: {
 
   return {
     id: app.id,
-    company: app.job?.company || "Target Company",
+    company: resolveDisplayCompanyName(app.job?.company || "Target Company", app.job?.description ?? undefined),
     role: app.job?.title || "Role",
     location: app.job?.location || "Remote",
     workArrangement:
@@ -92,6 +94,7 @@ export function toPipelineApplication(app: {
     notes: Array.isArray(meta.notes) ? meta.notes : [],
     tags: Array.isArray(meta.tags) ? meta.tags : ["Target Role"],
     portalUrl: meta.portalUrl || app.job?.applicationUrl,
+    description: app.job?.description ?? undefined,
     source: meta.source || atsSourceMap[app.job?.atsPlatform] || "direct",
   };
 }

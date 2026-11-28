@@ -11,17 +11,25 @@ import {
   Trash,
   User,
   Plus,
+  ArrowSquareOut,
+  Globe,
+  LinkedinLogo,
 } from "@phosphor-icons/react";
 import {
-  Drawer,
-  DrawerBody,
-  DrawerFooter,
-  DrawerHeader,
-} from "@/components/base/drawer/drawer";
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from "@/components/base/modal/modal";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "@/components/base/toast/toast";
 import { PipelineApplication, PipelineStage, STAGES } from "../types";
 import { FollowUpActionsDrawer } from "./FollowUpActionsDrawer";
+import { CompanyContactsCard } from "@/features/jobs/components/CompanyContactsCard";
+import {
+  resolveCompanyDomain,
+  resolveCompanyLinkedInUrl,
+} from "@/services/contacts/contactIntelligenceService";
 
 interface ApplicationDetailDrawerProps {
   application: PipelineApplication | null;
@@ -69,13 +77,13 @@ export function ApplicationDetailDrawer({
   };
 
   return (
-    <Drawer placement="end" size="md" isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DrawerHeader
+    <Modal size="xl" isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <ModalHeader
         title={application.role}
         description={`${application.company} · ${application.location}`}
       />
 
-      <DrawerBody>
+      <ModalBody>
         <div className="flex flex-col gap-6 pt-2">
           {/* Stage Switcher Pill Bar */}
           <div className="space-y-2">
@@ -111,6 +119,80 @@ export function ApplicationDetailDrawer({
               </p>
             )}
           </div>
+
+          {/* Source & Application Link */}
+          {(() => {
+            const companyDomain = resolveCompanyDomain(application.company);
+            const companyLinkedInUrl = resolveCompanyLinkedInUrl(application.company);
+
+            return (
+              <div className="p-3.5 rounded-2xl bg-white border border-[#E5E1D8] flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF7F0] border border-[#E5E1D8] flex items-center justify-center shrink-0 text-[#2D5F8A]">
+                    <Globe size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-[#5B6478] uppercase tracking-wider">
+                      Source: <span className="text-[#16213A]">{application.source}</span>
+                    </div>
+                    <div className="text-xs text-[#5B6478] truncate">
+                      {(() => {
+                        if (!application.portalUrl) return "No application URL attached";
+                        try {
+                          return new URL(application.portalUrl).hostname.replace(/^www\./, "");
+                        } catch {
+                          return application.portalUrl;
+                        }
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Company Official Website */}
+                  {companyDomain && (
+                    <a
+                      href={`https://${companyDomain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 min-h-[38px] px-3 py-1.5 rounded-xl bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 text-[#16213A] border border-[#E5E1D8] text-xs font-semibold transition-colors active:scale-[0.98]"
+                      title={`Visit ${application.company} Official Website`}
+                    >
+                      <Globe size={14} className="text-[#2D5F8A]" />
+                      <span>Website</span>
+                    </a>
+                  )}
+
+                  {/* Company LinkedIn Page */}
+                  {companyLinkedInUrl && (
+                    <a
+                      href={companyLinkedInUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 min-h-[38px] px-3 py-1.5 rounded-xl bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 text-[#0077b5] border border-[#E5E1D8] text-xs font-semibold transition-colors active:scale-[0.98]"
+                      title={`View ${application.company} on LinkedIn`}
+                    >
+                      <LinkedinLogo size={15} weight="fill" />
+                      <span>Company LinkedIn</span>
+                    </a>
+                  )}
+
+                  {/* Application Posting Link */}
+                  {application.portalUrl && /^https?:\/\//i.test(application.portalUrl) && (
+                    <a
+                      href={application.portalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 py-1.5 rounded-xl bg-[#2D5F8A] hover:bg-[#16213A] text-white text-xs font-semibold transition-colors active:scale-[0.98] shrink-0"
+                    >
+                      <span>Open Posting</span>
+                      <ArrowSquareOut size={14} weight="bold" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Fit Score & Comp Badge Box */}
           <div className="grid grid-cols-2 gap-3">
@@ -181,11 +263,11 @@ export function ApplicationDetailDrawer({
           )}
 
           {/* Hiring Contact Intelligence */}
-          {application.contact ? (
+          {application.contact && (
             <div className="p-4 rounded-2xl bg-white border border-[#E5E1D8] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-[#5B6478] uppercase tracking-wider">
-                  Hiring Lead Intelligence
+                  Linked Application Contact
                 </span>
                 <button
                   type="button"
@@ -216,13 +298,14 @@ export function ApplicationDetailDrawer({
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="p-3.5 rounded-2xl bg-[#FAF7F0] border border-dashed border-[#E5E1D8] text-center">
-              <span className="text-xs text-[#5B6478]">
-                No direct contact linked. Stage 04 crawler will enrich contacts.
-              </span>
-            </div>
           )}
+
+          {/* Decision Makers & Outreach Discovery */}
+          <CompanyContactsCard
+            companyName={application.company}
+            roleTitle={application.role}
+            jobDescription={application.description}
+          />
 
           {/* Verified Skills Cloud */}
           <div className="space-y-2">
@@ -278,9 +361,9 @@ export function ApplicationDetailDrawer({
             </form>
           </div>
         </div>
-      </DrawerBody>
+      </ModalBody>
 
-      <DrawerFooter>
+      <ModalFooter>
         <div className="w-full flex items-center justify-between gap-3">
           <button
             type="button"
@@ -306,7 +389,7 @@ export function ApplicationDetailDrawer({
             </Button>
           </div>
         </div>
-      </DrawerFooter>
+      </ModalFooter>
 
       {/* Follow-Up Actions Drawer */}
       <FollowUpActionsDrawer
@@ -318,6 +401,6 @@ export function ApplicationDetailDrawer({
           setIsFollowUpModalOpen(false);
         }}
       />
-    </Drawer>
+    </Modal>
   );
 }

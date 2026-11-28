@@ -10,6 +10,7 @@ import {
   Sparkle,
   Briefcase,
   User,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { PipelineApplication, PipelineStage, STAGES } from "../types";
 
@@ -161,15 +162,36 @@ export function KanbanCard({ application, onSelect, onMoveStage }: KanbanCardPro
           )}
         </div>
 
-        {/* Hiring Lead indicator if known */}
-        {application.contact && (
-          <div className="flex items-center gap-1.5 text-[10px] text-[#5B6478] pt-1 truncate">
-            <User size={12} className="text-[#2D5F8A] shrink-0" />
-            <span className="truncate">
-              Lead: <strong className="text-[#16213A]">{application.contact.name}</strong>
+        {/* Source Link & Hiring Lead indicator */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          {application.contact ? (
+            <div className="flex items-center gap-1.5 text-[10px] text-[#5B6478] truncate">
+              <User size={12} className="text-[#2D5F8A] shrink-0" />
+              <span className="truncate">
+                Lead: <strong className="text-[#16213A]">{application.contact.name}</strong>
+              </span>
+            </div>
+          ) : (
+            <span className="text-[10px] text-[#5B6478]/75 capitalize">
+              {application.source === "direct" ? "Direct / Custom" : `ATS: ${application.source}`}
             </span>
-          </div>
-        )}
+          )}
+
+          {application.portalUrl && /^https?:\/\//i.test(application.portalUrl) && (
+            <a
+              href={application.portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title="Open original job posting"
+              aria-label={`Open ${application.role} posting`}
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#2D5F8A] hover:text-[#16213A] hover:underline shrink-0"
+            >
+              <span>Apply</span>
+              <ArrowSquareOut size={11} weight="bold" />
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );

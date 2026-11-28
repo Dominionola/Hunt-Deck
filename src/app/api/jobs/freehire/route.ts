@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
 import { freehireLiveSearchQuerySchema } from "@/lib/validations/freehire";
 import { fetchFreehireJobs } from "@/services/jobs/adapters/freehireAdapter";
+import { getOrSetCached } from "@/lib/cache";
 import { redis } from "@/lib/redis";
 
 const headers = { "Cache-Control": "no-store" };
@@ -58,36 +59,42 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await fetchFreehireJobs({
-      query: parsed.data.q,
-      workMode: parsed.data.workMode,
-      sourceFilter: parsed.data.sourceFilter,
-      limit: parsed.data.limit,
-      offset: parsed.data.offset,
-    });
+    const { data: payload } = await getOrSetCached(
+      "freehire-search",
+      parsed.data,
+      600,
+      async () => {
+        const result = await fetchFreehireJobs({
+          query: parsed.data.q,
+          workMode: parsed.data.workMode,
+          sourceFilter: parsed.data.sourceFilter,
+          limit: parsed.data.limit,
+          offset: parsed.data.offset,
+        });
 
-    return NextResponse.json(
-      {
-        success: true,
-        totalAvailable: result.totalAvailable,
-        items: result.jobs.map((job) => ({
-          id: job.publicSlug,
-          publicSlug: job.publicSlug,
-          sourceName: job.sourceName,
-          title: job.title,
-          company: job.company,
-          location: job.location ?? null,
-          remoteType: job.remoteType,
-          atsPlatform: job.atsPlatform,
-          applicationUrl: job.applicationUrl,
-          postedAt: (job.postedAt ?? new Date()).toISOString(),
-          salaryMin: job.salaryMin ?? null,
-          salaryMax: job.salaryMax ?? null,
-          techStack: job.techStack,
-        })),
-      },
-      { headers }
+        return {
+          success: true as const,
+          totalAvailable: result.totalAvailable,
+          items: result.jobs.map((job) => ({
+            id: job.publicSlug,
+            publicSlug: job.publicSlug,
+            sourceName: job.sourceName,
+            title: job.title,
+            company: job.company,
+            location: job.location ?? null,
+            remoteType: job.remoteType,
+            atsPlatform: job.atsPlatform,
+            applicationUrl: job.applicationUrl,
+            postedAt: (job.postedAt ?? new Date()).toISOString(),
+            salaryMin: job.salaryMin ?? null,
+            salaryMax: job.salaryMax ?? null,
+            techStack: job.techStack,
+          })),
+        };
+      }
     );
+
+    return NextResponse.json(payload, { headers });
   } catch {
     return NextResponse.json(
       { error: "Freehire global catalog is temporarily unavailable." },

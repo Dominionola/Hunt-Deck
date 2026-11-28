@@ -23,6 +23,7 @@ export interface PipelineApplication {
   notes: string[];
   tags: string[];
   portalUrl?: string;
+  description?: string;
   source: "greenhouse" | "lever" | "ashby" | "social" | "direct";
 }
 

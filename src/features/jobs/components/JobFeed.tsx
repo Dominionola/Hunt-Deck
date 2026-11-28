@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   RiRefreshLine,
   RiExternalLinkLine,
@@ -69,17 +70,14 @@ const ARRANGEMENT_LABELS: Record<ProfilePreferencesInput["remotePreference"], st
 
 export function JobFeed() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<"recent" | "personalized">("personalized");
   const [savingSlug, setSavingSlug] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [revision, setRevision] = useState(0);
-  const [state, setState] = useState<FeedState>({ status: "loading" });
 
-  const [preferences, setPreferences] = useState<ProfilePreferencesInput>(DEFAULT_PREFERENCES);
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [remoteOverride, setRemoteOverride] = useState<ProfilePreferencesInput["remotePreference"] | null>(null);
   const [selectedTitles, setSelectedTitles] = useState<string[]>([]);
@@ -96,23 +94,19 @@ export function JobFeed() {
   });
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const res = await fetch("/api/profile/preferences", { cache: "no-store", signal: controller.signal });
-        if (!res.ok) return;
-        const data = (await res.json()) as { preferences?: ProfilePreferencesInput };
-        if (data.preferences && !controller.signal.aborted) {
-          setPreferences(data.preferences);
-          setPrefsLoaded(true);
-        }
-      } catch {
-        // Ignore non-critical preference hydration error
-      }
-    })();
-    return () => controller.abort();
-  }, []);
+  const preferencesQuery = useQuery({
+    queryKey: ["profile", "preferences"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/profile/preferences", { signal });
+      if (!res.ok) return DEFAULT_PREFERENCES;
+      const data = (await res.json()) as { preferences?: ProfilePreferencesInput };
+      return data.preferences ?? DEFAULT_PREFERENCES;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const preferences = preferencesQuery.data ?? DEFAULT_PREFERENCES;
+  const prefsLoaded = preferencesQuery.isSuccess;
 
   useEffect(() => {
     if (!suggestionsOpen) return;
@@ -142,7 +136,7 @@ export function JobFeed() {
         try {
           const res = await fetch(
             `/api/jobs/suggestions?q=${encodeURIComponent(search.trim())}`,
-            { cache: "no-store", signal: controller.signal }
+            { signal: controller.signal }
           );
           if (!res.ok) return;
           const data = (await res.json()) as SuggestionsState;
@@ -160,148 +154,144 @@ export function JobFeed() {
     };
   }, [search, suggestionsOpen]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      setState({ status: "error", message: "Job listings took too long to load. Please retry." });
-      controller.abort();
-    }, 15000);
+  const feedQuery = useQuery({
+    queryKey: [
+      "jobs",
+      "feed",
+      mode,
+      query,
+      selectedTitles,
+      selectedStack,
+      regionScope,
+      remoteOverride,
+      activeLocationQuery,
+      page,
+      preferences.targetTitles[0] ?? "",
+      preferences.remotePreference,
+    ],
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({
+        limit: "20",
+        page: String(page),
+        ...(query ? { search: query } : {}),
+        ...(selectedTitles.length > 0 ? { titles: selectedTitles.join(",") } : {}),
+        ...(selectedStack.length > 0 ? { stack: selectedStack.join(",") } : {}),
+        ...(regionScope !== "ANY" ? { regionScope } : {}),
+        ...(remoteOverride ? { remoteType: remoteOverride } : {}),
+        ...(activeLocationQuery ? { location: activeLocationQuery } : {}),
+      });
 
-    const params = new URLSearchParams({
-      limit: "20",
-      page: String(page),
-      ...(query ? { search: query } : {}),
-      ...(selectedTitles.length > 0 ? { titles: selectedTitles.join(",") } : {}),
-      ...(selectedStack.length > 0 ? { stack: selectedStack.join(",") } : {}),
-      ...(regionScope !== "ANY" ? { regionScope } : {}),
-      ...(remoteOverride ? { remoteType: remoteOverride } : {}),
-      ...(activeLocationQuery ? { location: activeLocationQuery } : {}),
-    });
-
-    void (async () => {
-      try {
-        const response = await fetch(
-          `/api/jobs${mode === "personalized" ? "/matches" : ""}?${params}`,
-          { cache: "no-store", signal: controller.signal }
+      const response = await fetch(
+        `/api/jobs${mode === "personalized" ? "/matches" : ""}?${params}`,
+        { signal }
+      );
+      if (!response.ok) {
+        throw new Error(
+          response.status === 401
+            ? "Your session expired. Sign in again."
+            : "Job listings could not be loaded. Please retry."
         );
-        if (!response.ok) {
-          throw new Error(
-            response.status === 401
-              ? "Your session expired. Sign in again."
-              : "Job listings could not be loaded. Please retry."
-          );
-        }
-        const localData = jobListingResponseSchema.parse(await response.json());
-        if (controller.signal.aborted) return;
+      }
+      const localData = jobListingResponseSchema.parse(await response.json());
 
-        // Publish local ranked/recent matches right away
-        setState({
-          status: "ready",
-          items: localData.items,
+      const shouldExpandCatalog =
+        page === 1 &&
+        (localData.items.length < 12 || Boolean(query || activeLocationQuery || selectedTitles.length > 0));
+
+      if (!shouldExpandCatalog) {
+        return {
+          items: localData.items as FeedItem[],
           total: localData.pagination.total,
           personalization: localData.personalization,
-        });
-
-        // Seamlessly unify with broader live catalog on page 1 when local matches are sparse (< 12)
-        // or when user runs a search/filter so users never have to toggle providers.
-        const shouldExpandCatalog =
-          page === 1 &&
-          (localData.items.length < 12 || Boolean(query || activeLocationQuery || selectedTitles.length > 0));
-
-        if (!shouldExpandCatalog) return;
-
-        const baseQuery =
-          query ||
-          selectedTitles.join(" OR ") ||
-          preferences.targetTitles[0] ||
-          "Software Engineer";
-        const locationTerm =
-          activeLocationQuery ||
-          (regionScope === "US" ? "United States" : regionScope === "EMEA" ? "Europe" : "");
-        const combinedQuery = [baseQuery, locationTerm, selectedStack.join(" ")]
-          .filter(Boolean)
-          .join(" ")
-          .trim()
-          .slice(0, 160);
-
-        const effectiveWork = remoteOverride ?? preferences.remotePreference;
-        const fhParams = new URLSearchParams({
-          q: combinedQuery,
-          limit: "12",
-          offset: "0",
-          ...(effectiveWork !== "ANY" ? { workMode: effectiveWork } : {}),
-        });
-
-        try {
-          const fhRes = await fetch(`/api/jobs/freehire?${fhParams}`, {
-            cache: "no-store",
-            signal: controller.signal,
-          });
-          if (!fhRes.ok || controller.signal.aborted) return;
-          const fhData = freehireResponseSchema.parse(await fhRes.json());
-          if (controller.signal.aborted) return;
-
-          const existingKeys = new Set(
-            localData.items.map(
-              (item) => `${item.company.trim().toLowerCase()}::${item.title.trim().toLowerCase()}`
-            )
-          );
-          const supplemental = fhData.items.filter((item) => {
-            const k = `${item.company.trim().toLowerCase()}::${item.title.trim().toLowerCase()}`;
-            if (existingKeys.has(k)) return false;
-            existingKeys.add(k);
-            return true;
-          });
-
-          if (supplemental.length > 0 && !controller.signal.aborted) {
-            setState({
-              status: "ready",
-              items: [...localData.items, ...supplemental],
-              total: localData.pagination.total + supplemental.length,
-              personalization: localData.personalization,
-              expandedCount: supplemental.length,
-            });
-          }
-        } catch {
-          // Fail open cleanly: local ranked matches remain visible if live catalog is unavailable
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setState({
-            status: "error",
-            message:
-              error instanceof Error && !(error instanceof z.ZodError)
-                ? error.message
-                : "Job listings could not be loaded. Please retry.",
-          });
-        }
-      } finally {
-        clearTimeout(timeout);
+          expandedCount: undefined as number | undefined,
+        };
       }
-    })();
 
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [
-    mode,
-    query,
-    selectedTitles,
-    selectedStack,
-    regionScope,
-    page,
-    revision,
-    remoteOverride,
-    activeLocationQuery,
-    preferences.targetTitles,
-    preferences.remotePreference,
-  ]);
+      const baseQuery =
+        query ||
+        selectedTitles.join(" OR ") ||
+        preferences.targetTitles[0] ||
+        "Software Engineer";
+      const locationTerm =
+        activeLocationQuery ||
+        (regionScope === "US" ? "United States" : regionScope === "EMEA" ? "Europe" : "");
+      const combinedQuery = [baseQuery, locationTerm, selectedStack.join(" ")]
+        .filter(Boolean)
+        .join(" ")
+        .trim()
+        .slice(0, 160);
+
+      const effectiveWork = remoteOverride ?? preferences.remotePreference;
+      const fhParams = new URLSearchParams({
+        q: combinedQuery,
+        limit: "12",
+        offset: "0",
+        ...(effectiveWork !== "ANY" ? { workMode: effectiveWork } : {}),
+      });
+
+      try {
+        const fhRes = await fetch(`/api/jobs/freehire?${fhParams}`, { signal });
+        if (!fhRes.ok) {
+          return {
+            items: localData.items as FeedItem[],
+            total: localData.pagination.total,
+            personalization: localData.personalization,
+            expandedCount: undefined as number | undefined,
+          };
+        }
+        const fhData = freehireResponseSchema.parse(await fhRes.json());
+        const existingKeys = new Set(
+          localData.items.map(
+            (item) => `${item.company.trim().toLowerCase()}::${item.title.trim().toLowerCase()}`
+          )
+        );
+        const supplemental = fhData.items.filter((item) => {
+          const k = `${item.company.trim().toLowerCase()}::${item.title.trim().toLowerCase()}`;
+          if (existingKeys.has(k)) return false;
+          existingKeys.add(k);
+          return true;
+        });
+
+        return {
+          items: [...localData.items, ...supplemental] as FeedItem[],
+          total: localData.pagination.total + supplemental.length,
+          personalization: localData.personalization,
+          expandedCount: supplemental.length > 0 ? supplemental.length : undefined,
+        };
+      } catch {
+        return {
+          items: localData.items as FeedItem[],
+          total: localData.pagination.total,
+          personalization: localData.personalization,
+          expandedCount: undefined as number | undefined,
+        };
+      }
+    },
+    staleTime: 2 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+  const state: FeedState = feedQuery.isPending
+    ? { status: "loading" }
+    : feedQuery.isError
+    ? {
+        status: "error",
+        message:
+          feedQuery.error instanceof Error && !(feedQuery.error instanceof z.ZodError)
+            ? feedQuery.error.message
+            : "Job listings could not be loaded. Please retry.",
+      }
+    : {
+        status: "ready",
+        items: feedQuery.data.items,
+        total: feedQuery.data.total,
+        personalization: feedQuery.data.personalization,
+        expandedCount: feedQuery.data.expandedCount,
+      };
 
   const refresh = () => {
     setSaveError(null);
-    setState({ status: "loading" });
-    setRevision((v) => v + 1);
+    void feedQuery.refetch();
   };
 
   const saveAndTailorJob = async (publicSlug: string) => {
@@ -319,6 +309,8 @@ export function JobFeed() {
         throw new Error(err?.error ?? "Could not import posting for tailoring.");
       }
       const data = z.object({ jobId: z.string().min(1) }).parse(await response.json());
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       router.push(`/dashboard/tailor/${encodeURIComponent(data.jobId)}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Could not import posting.");
@@ -331,8 +323,6 @@ export function JobFeed() {
       prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
     );
     setPage(1);
-    setState({ status: "loading" });
-    setRevision((v) => v + 1);
   };
 
   const toggleRolePill = (title: string) => {
@@ -342,8 +332,6 @@ export function JobFeed() {
         : [...prev, title]
     );
     setPage(1);
-    setState({ status: "loading" });
-    setRevision((v) => v + 1);
   };
 
   const applySearchSelection = (value: string) => {
@@ -351,8 +339,6 @@ export function JobFeed() {
     setQuery(value.trim());
     setSuggestionsOpen(false);
     setPage(1);
-    setState({ status: "loading" });
-    setRevision((v) => v + 1);
   };
 
   const quickRemoveSavedLocation = async (target: string) => {
@@ -360,8 +346,7 @@ export function JobFeed() {
       ...preferences,
       preferredLocations: preferences.preferredLocations.filter((l) => l !== target),
     };
-    setPreferences(nextPrefs);
-    setState({ status: "loading" });
+    queryClient.setQueryData(["profile", "preferences"], nextPrefs);
     try {
       await fetch("/api/profile/preferences", {
         method: "PATCH",
@@ -370,7 +355,7 @@ export function JobFeed() {
       });
     } finally {
       setPage(1);
-      setRevision((v) => v + 1);
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
     }
   };
 
@@ -389,10 +374,8 @@ export function JobFeed() {
             aria-pressed={mode === "personalized"}
             className="min-h-11"
             onClick={() => {
-              setState({ status: "loading" });
               setPage(1);
               setMode("personalized");
-              setRevision((v) => v + 1);
             }}
           >
             Resume similarity
@@ -402,10 +385,8 @@ export function JobFeed() {
             aria-pressed={mode === "recent"}
             className="min-h-11"
             onClick={() => {
-              setState({ status: "loading" });
               setPage(1);
               setMode("recent");
-              setRevision((v) => v + 1);
             }}
           >
             Recent listings
@@ -437,11 +418,9 @@ export function JobFeed() {
           onSubmit={(event) => {
             event.preventDefault();
             setSuggestionsOpen(false);
-            setState({ status: "loading" });
             setPage(1);
             setQuery(search.trim());
             setActiveLocationQuery(locationFilter.trim());
-            setRevision((v) => v + 1);
           }}
         >
           <div ref={searchBoxRef} className="relative">
@@ -460,8 +439,6 @@ export function JobFeed() {
                 setQuery("");
                 setSuggestionsOpen(false);
                 setPage(1);
-                setState({ status: "loading" });
-                setRevision((v) => v + 1);
               }}
               fieldClassName="min-h-11"
               maxLength={200}
@@ -565,8 +542,6 @@ export function JobFeed() {
                   setActiveLocationQuery("");
                   setRemoteOverride(null);
                   setPage(1);
-                  setState({ status: "loading" });
-                  setRevision((v) => v + 1);
                 }}
               >
                 Reset
@@ -586,8 +561,6 @@ export function JobFeed() {
               onClick={() => {
                 setSelectedTitles([]);
                 setPage(1);
-                setState({ status: "loading" });
-                setRevision((v) => v + 1);
               }}
               className={cx(
                 "min-h-8 rounded-full border px-3 py-1 text-caption-1-semibold transition-colors",
@@ -654,10 +627,8 @@ export function JobFeed() {
               onSelectionChange={(keys) => {
                 const selected = [...keys][0] as ProfilePreferencesInput["remotePreference"] | undefined;
                 if (selected) {
-                  setState({ status: "loading" });
                   setPage(1);
                   setRemoteOverride(selected);
-                  setRevision((v) => v + 1);
                 }
               }}
             >
@@ -676,10 +647,8 @@ export function JobFeed() {
               onSelectionChange={(keys) => {
                 const selected = [...keys][0] as RegionScope | undefined;
                 if (selected) {
-                  setState({ status: "loading" });
                   setPage(1);
                   setRegionScope(selected);
-                  setRevision((v) => v + 1);
                 }
               }}
             >
@@ -781,7 +750,6 @@ export function JobFeed() {
                     variant="secondary"
                     className="min-h-11"
                     onClick={() => {
-                      setState({ status: "loading" });
                       setPage(1);
                       setMode("recent");
                     }}
@@ -908,7 +876,6 @@ export function JobFeed() {
                 disabled={page <= 1}
                 className="min-h-11"
                 onClick={() => {
-                  setState({ status: "loading" });
                   setPage((v) => v - 1);
                 }}
               >
@@ -919,7 +886,6 @@ export function JobFeed() {
                 disabled={page * 20 >= state.total}
                 className="min-h-11"
                 onClick={() => {
-                  setState({ status: "loading" });
                   setPage((v) => v + 1);
                 }}
               >
@@ -935,11 +901,10 @@ export function JobFeed() {
         onOpenChange={setDrawerOpen}
         preferences={preferences}
         onSaved={(updated) => {
-          setPreferences(updated);
+          queryClient.setQueryData(["profile", "preferences"], updated);
           setRemoteOverride(null);
           setPage(1);
-          setState({ status: "loading" });
-          setRevision((v) => v + 1);
+          void queryClient.invalidateQueries({ queryKey: ["jobs"] });
         }}
       />
     </div>

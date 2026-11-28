@@ -1,50 +1,65 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import {
-  MagnifyingGlass,
-  Plus,
-} from "@phosphor-icons/react";
+import React, { useState, useMemo, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MagnifyingGlass, Plus, WarningCircle } from "@phosphor-icons/react";
 import { toast } from "@/components/base/toast/toast";
+import { useDashboard } from "@/components/dashboard/DashboardContext";
 import { PipelineApplication, PipelineStage, STAGES } from "../types";
-import { INITIAL_APPLICATIONS } from "../mockData";
 import { KanbanColumn } from "./KanbanColumn";
 import { ApplicationDetailDrawer } from "./ApplicationDetailDrawer";
 import { AddOpportunityModal } from "./AddOpportunityModal";
 
-export function PipelineKanbanBoard() {
-  const [applications, setApplications] = useState<PipelineApplication[]>(INITIAL_APPLICATIONS);
+interface PipelineKanbanBoardProps {
+  initialApplications?: PipelineApplication[];
+}
+
+async function fetchPipelineApplications({ signal }: { signal: AbortSignal }): Promise<PipelineApplication[]> {
+  const res = await fetch("/api/applications", { signal });
+  if (!res.ok) {
+    throw new Error("Failed to load application pipeline.");
+  }
+  const data = (await res.json()) as { applications?: PipelineApplication[] };
+  return Array.isArray(data.applications) ? data.applications : [];
+}
+
+export function PipelineKanbanBoard({ initialApplications }: PipelineKanbanBoardProps) {
+  const queryClient = useQueryClient();
+  const { refreshMetrics } = useDashboard();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<"all" | "remote" | "high-match" | "followup">("all");
-  const [selectedApp, setSelectedApp] = useState<PipelineApplication | null>(null);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addModalInitialStage, setAddModalInitialStage] = useState<PipelineStage>("saved");
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Sync with live database on mount
-  useEffect(() => {
-    async function loadApplications() {
-      try {
-        const res = await fetch("/api/applications");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.applications && data.applications.length > 0) {
-            setApplications(data.applications);
-          }
-        }
-      } catch {
-        // Fall back to INITIAL_APPLICATIONS if error
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadApplications();
-  }, []);
+  const {
+    data: applications = [],
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["applications"],
+    queryFn: fetchPipelineApplications,
+    initialData: initialApplications,
+    staleTime: 60_000,
+  });
 
-  // Filtered applications
+  const selectedApp = useMemo(
+    () => (selectedAppId ? applications.find((a) => a.id === selectedAppId) ?? null : null),
+    [applications, selectedAppId]
+  );
+
+  const setApplicationsCache = useCallback(
+    (updater: (prev: PipelineApplication[]) => PipelineApplication[]) => {
+      queryClient.setQueryData<PipelineApplication[]>(["applications"], (prev) => updater(prev ?? []));
+    },
+    [queryClient]
+  );
+
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
-      // Search matching
       const matchesSearch =
         searchQuery === "" ||
         app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -53,13 +68,8 @@ export function PipelineKanbanBoard() {
 
       if (!matchesSearch) return false;
 
-      // Filter chips
-      if (filterType === "remote") {
-        return app.workArrangement === "remote";
-      }
-      if (filterType === "high-match") {
-        return app.fitScore >= 90;
-      }
+      if (filterType === "remote") return app.workArrangement === "remote";
+      if (filterType === "high-match") return app.fitScore >= 90;
       if (filterType === "followup") {
         return (
           app.followUpDueDate?.toLowerCase().includes("today") ||
@@ -72,7 +82,6 @@ export function PipelineKanbanBoard() {
     });
   }, [applications, searchQuery, filterType]);
 
-  // Optimistic Move Stage with Database Sync
   const handleMoveStage = (id: string, newStage: PipelineStage) => {
     const targetApp = applications.find((a) => a.id === id);
     if (!targetApp) return;
@@ -80,7 +89,7 @@ export function PipelineKanbanBoard() {
     const previousStage = targetApp.stage;
     const targetStageConfig = STAGES.find((s) => s.id === newStage);
 
-    setApplications((prev) =>
+    setApplicationsCache((prev) =>
       prev.map((app) => {
         if (app.id === id) {
           return {
@@ -97,17 +106,17 @@ export function PipelineKanbanBoard() {
       })
     );
 
-    // Update selected app if open in drawer
-    setSelectedApp((prev) => (prev?.id === id ? { ...prev, stage: newStage } : prev));
-
-    // Persist to database asynchronously
     fetch(`/api/applications/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stage: newStage }),
-    }).catch((err) => {
-      console.error("Failed to sync stage change to server:", err);
-    });
+    })
+      .then(() => {
+        refreshMetrics();
+      })
+      .catch((err) => {
+        console.error("Failed to sync stage change to server:", err);
+      });
 
     toast.success(`Moved to ${targetStageConfig?.label}`, {
       description: `${targetApp.company} (${targetApp.role}) updated.`,
@@ -115,14 +124,18 @@ export function PipelineKanbanBoard() {
         {
           label: "Undo",
           onClick: () => {
-            setApplications((prev) =>
+            setApplicationsCache((prev) =>
               prev.map((app) => (app.id === id ? { ...app, stage: previousStage } : app))
             );
             fetch(`/api/applications/${id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ stage: previousStage }),
-            }).catch(() => {});
+            })
+              .then(() => {
+                refreshMetrics();
+              })
+              .catch(() => {});
             toast.info("Action Undone", {
               description: `Returned ${targetApp.company} to ${
                 STAGES.find((s) => s.id === previousStage)?.label
@@ -134,11 +147,9 @@ export function PipelineKanbanBoard() {
     });
   };
 
-  // Add new opportunity with Database Sync
   const handleAddOpportunity = (newApp: PipelineApplication) => {
-    setApplications((prev) => [newApp, ...prev]);
+    setApplicationsCache((prev) => [newApp, ...prev]);
 
-    // Persist to database
     fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -146,12 +157,13 @@ export function PipelineKanbanBoard() {
     })
       .then(async (res) => {
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as { application?: PipelineApplication };
           if (data.application?.id) {
-            setApplications((prev) =>
-              prev.map((a) => (a.id === newApp.id ? data.application : a))
+            setApplicationsCache((prev) =>
+              prev.map((a) => (a.id === newApp.id ? data.application! : a))
             );
           }
+          refreshMetrics();
         }
       })
       .catch((err) => {
@@ -159,12 +171,10 @@ export function PipelineKanbanBoard() {
       });
   };
 
-  // Add note to application with Database Sync
   const handleAddNote = (id: string, noteText: string) => {
-    setApplications((prev) =>
+    setApplicationsCache((prev) =>
       prev.map((app) => (app.id === id ? { ...app, notes: [noteText, ...app.notes] } : app))
     );
-    setSelectedApp((prev) => (prev?.id === id ? { ...prev, notes: [noteText, ...prev.notes] } : prev));
 
     fetch(`/api/applications/${id}`, {
       method: "PATCH",
@@ -175,16 +185,20 @@ export function PipelineKanbanBoard() {
     });
   };
 
-  // Delete opportunity with Database Sync
   const handleDelete = (id: string) => {
     const deleted = applications.find((a) => a.id === id);
-    setApplications((prev) => prev.filter((a) => a.id !== id));
+    setApplicationsCache((prev) => prev.filter((a) => a.id !== id));
+    if (selectedAppId === id) setSelectedAppId(null);
 
     fetch(`/api/applications/${id}`, {
       method: "DELETE",
-    }).catch((err) => {
-      console.error("Failed to delete application from server:", err);
-    });
+    })
+      .then(() => {
+        refreshMetrics();
+      })
+      .catch((err) => {
+        console.error("Failed to delete application from server:", err);
+      });
 
     if (deleted) {
       toast.info("Opportunity Removed", {
@@ -193,12 +207,16 @@ export function PipelineKanbanBoard() {
           {
             label: "Restore",
             onClick: () => {
-              setApplications((prev) => [deleted, ...prev]);
+              setApplicationsCache((prev) => [deleted, ...prev]);
               fetch("/api/applications", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(deleted),
-              }).catch(() => {});
+              })
+                .then(() => {
+                  refreshMetrics();
+                })
+                .catch(() => {});
             },
           },
         ],
@@ -206,17 +224,58 @@ export function PipelineKanbanBoard() {
     }
   };
 
-  // Open Add modal with specified initial stage
   const handleQuickAdd = (stageId: PipelineStage) => {
     setAddModalInitialStage(stageId);
     setAddModalOpen(true);
   };
 
+  if (isPending && applications.length === 0) {
+    return (
+      <div className="space-y-6" role="status" aria-label="Loading application pipeline">
+        <div className="h-16 rounded-3xl bg-[#FAF7F0] border border-[#E5E1D8] animate-pulse" />
+        <div className="flex gap-4 overflow-x-auto pb-6">
+          {STAGES.map((stage) => (
+            <div
+              key={stage.id}
+              className="w-[300px] shrink-0 rounded-3xl bg-[#FAF7F0] border border-[#E5E1D8] p-4 space-y-3 min-h-[480px] animate-pulse"
+            >
+              <div className="h-5 w-32 bg-[#E5E1D8] rounded-md" />
+              <div className="h-28 w-full bg-white/80 rounded-2xl border border-[#E5E1D8]" />
+              <div className="h-28 w-full bg-white/80 rounded-2xl border border-[#E5E1D8]" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError && applications.length === 0) {
+    return (
+      <div
+        role="alert"
+        className="p-6 bg-white border border-red-200 rounded-3xl text-center space-y-3"
+      >
+        <div className="w-10 h-10 mx-auto rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+          <WarningCircle size={20} weight="bold" />
+        </div>
+        <h2 className="text-sm font-bold text-[#16213A]">Unable to Load Pipeline</h2>
+        <p className="text-xs text-[#5B6478]">
+          {error instanceof Error ? error.message : "Could not load your applications."}
+        </p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="min-h-[44px] px-4 py-2 rounded-xl bg-[#FAF7F0] border border-[#E5E1D8] text-xs font-bold text-[#16213A] hover:bg-[#EDF3F7] cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Top Controls & KPI Summary Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-[#E5E1D8] shadow-2xs">
-        {/* Search input */}
         <div className="flex items-center gap-2.5 flex-1 max-w-md">
           <div className="relative w-full">
             <MagnifyingGlass
@@ -233,13 +292,12 @@ export function PipelineKanbanBoard() {
           </div>
         </div>
 
-        {/* Filter Chips & Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 bg-[#FAF7F0] p-1 rounded-2xl border border-[#E5E1D8]">
             <button
               type="button"
               onClick={() => setFilterType("all")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 filterType === "all"
                   ? "bg-[#16213A] text-white shadow-2xs"
                   : "text-[#5B6478] hover:text-[#16213A]"
@@ -250,7 +308,7 @@ export function PipelineKanbanBoard() {
             <button
               type="button"
               onClick={() => setFilterType("remote")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 filterType === "remote"
                   ? "bg-[#16213A] text-white shadow-2xs"
                   : "text-[#5B6478] hover:text-[#16213A]"
@@ -261,7 +319,7 @@ export function PipelineKanbanBoard() {
             <button
               type="button"
               onClick={() => setFilterType("high-match")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 filterType === "high-match"
                   ? "bg-[#16213A] text-white shadow-2xs"
                   : "text-[#5B6478] hover:text-[#16213A]"
@@ -272,7 +330,7 @@ export function PipelineKanbanBoard() {
             <button
               type="button"
               onClick={() => setFilterType("followup")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 filterType === "followup"
                   ? "bg-[#16213A] text-white shadow-2xs"
                   : "text-[#5B6478] hover:text-[#16213A]"
@@ -285,7 +343,7 @@ export function PipelineKanbanBoard() {
           <button
             type="button"
             onClick={() => handleQuickAdd("saved")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#16213A] text-white text-xs font-bold hover:bg-[#0D1527] transition-all shadow-2xs hover:shadow-xs active:scale-98"
+            className="flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl bg-[#16213A] text-white text-xs font-bold hover:bg-[#0D1527] transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer"
           >
             <Plus size={15} weight="bold" />
             <span>Add Opportunity</span>
@@ -293,7 +351,6 @@ export function PipelineKanbanBoard() {
         </div>
       </div>
 
-      {/* 5 Kanban Stage Columns Container */}
       <div className="flex gap-4 overflow-x-auto pb-6 pt-1 select-none min-h-[600px] scrollbar-thin">
         {STAGES.map((stage) => {
           const stageApps = filteredApplications.filter((app) => app.stage === stage.id);
@@ -302,7 +359,7 @@ export function PipelineKanbanBoard() {
               key={stage.id}
               stage={stage}
               applications={stageApps}
-              onSelect={setSelectedApp}
+              onSelect={(app) => setSelectedAppId(app.id)}
               onMoveStage={handleMoveStage}
               onQuickAdd={handleQuickAdd}
             />
@@ -310,17 +367,15 @@ export function PipelineKanbanBoard() {
         })}
       </div>
 
-      {/* Slide-over Inspection Drawer */}
       <ApplicationDetailDrawer
         application={selectedApp}
         isOpen={selectedApp !== null}
-        onClose={() => setSelectedApp(null)}
+        onClose={() => setSelectedAppId(null)}
         onMoveStage={handleMoveStage}
         onAddNote={handleAddNote}
         onDelete={handleDelete}
       />
 
-      {/* Add Opportunity Modal */}
       <AddOpportunityModal
         isOpen={addModalOpen}
         initialStage={addModalInitialStage}

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   LinkedinLogo,
@@ -14,46 +15,54 @@ import {
 import { toast } from "@/components/base/toast/toast";
 import {
   type EnrichedContact,
-  enrichCompanyContacts,
 } from "@/services/contacts/contactIntelligenceService";
 import { OutreachModal } from "@/features/contacts/components/OutreachModal";
 
 interface CompanyContactsCardProps {
   companyName: string;
   roleTitle: string;
+  jobDescription?: string;
 }
 
 export function CompanyContactsCard({
   companyName,
   roleTitle,
+  jobDescription,
 }: CompanyContactsCardProps) {
-  const [contacts, setContacts] = useState<EnrichedContact[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeContactForOutreach, setActiveContactForOutreach] = useState<EnrichedContact | null>(null);
   const [copiedEmailMap, setCopiedEmailMap] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    let isMounted = true;
+  const jdFingerprint = jobDescription ? `${jobDescription.length}:${jobDescription.slice(0, 80)}` : "";
 
-    enrichCompanyContacts(companyName, roleTitle)
-      .then((results) => {
-        if (isMounted) {
-          setContacts(results);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setError(err.message || "Failed to discover contacts");
-          setIsLoading(false);
-        }
+  const {
+    data: contacts = [],
+    isPending: isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: ["contacts", "enrich", companyName.trim().toLowerCase(), roleTitle.trim().toLowerCase(), jdFingerprint],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/contacts/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName, roleTitle, jobDescription }),
+        signal,
       });
+      if (!res.ok) {
+        throw new Error("Failed to discover contacts");
+      }
+      const data = (await res.json()) as { contacts?: EnrichedContact[] };
+      return data.contacts ?? [];
+    },
+    staleTime: 15 * 60_000,
+  });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [companyName, roleTitle]);
+  const error = isError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Failed to discover contacts"
+    : null;
 
   const handleCopyEmail = (contact: EnrichedContact) => {
     navigator.clipboard.writeText(contact.email);
@@ -100,13 +109,7 @@ export function CompanyContactsCard({
         <p className="text-[#5B6478]">{error}</p>
         <button
           type="button"
-          onClick={() => {
-            setIsLoading(true);
-            setError(null);
-            enrichCompanyContacts(companyName, roleTitle)
-              .then(setContacts)
-              .finally(() => setIsLoading(false));
-          }}
+          onClick={() => void refetch()}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#FAF7F0]/80 text-[#16213A] border border-[#E5E1D8] rounded-lg font-semibold cursor-pointer"
         >
           <ArrowsClockwise size={12} />
@@ -123,9 +126,9 @@ export function CompanyContactsCard({
         <div className="w-9 h-9 mx-auto rounded-full bg-[#FAF7F0] border border-[#E5E1D8] flex items-center justify-center text-[#5B6478]">
           <Users size={18} />
         </div>
-        <div className="text-xs font-bold text-[#16213A]">No verified contacts indexed yet</div>
+        <div className="text-xs font-bold text-[#16213A]">No verified contacts found yet</div>
         <p className="text-[11px] text-[#5B6478] max-w-sm mx-auto">
-          Google Dork search crawler found no public executive LinkedIn snippets for this company.
+          No direct email address was listed in this job description, and live decision-maker search requires an active SerpAPI key.
         </p>
       </div>
     );
@@ -143,9 +146,11 @@ export function CompanyContactsCard({
             </h4>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap shrink-0">
             <Sparkle size={11} weight="fill" />
-            <span>{contacts.length} Decision Makers Found</span>
+            <span>
+              {contacts.length} {contacts.length === 1 ? "Decision Maker" : "Decision Makers"} Found
+            </span>
           </div>
         </div>
 
@@ -167,19 +172,18 @@ export function CompanyContactsCard({
 
                       {/* Role Pill */}
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                          isHiringMgr
-                            ? "bg-emerald-100 text-emerald-800"
-                            : isExec
+                        className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${isHiringMgr
+                          ? "bg-emerald-100 text-emerald-800"
+                          : isExec
                             ? "bg-purple-100 text-purple-800"
                             : "bg-blue-100 text-blue-800"
-                        }`}
+                          }`}
                       >
                         {isHiringMgr
                           ? "Likely Hiring Manager"
                           : isExec
-                          ? "Executive Sponsor"
-                          : "Team Lead / Peer"}
+                            ? "Executive Sponsor"
+                            : "Team Lead / Peer"}
                       </span>
                     </div>
 
@@ -188,16 +192,18 @@ export function CompanyContactsCard({
                     </p>
                   </div>
 
-                  {/* LinkedIn Link */}
-                  <a
-                    href={contact.linkedinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 p-1 rounded-md text-[#5B6478] hover:text-[#0077b5] hover:bg-white transition-colors"
-                    title={`View ${contact.fullName} on LinkedIn`}
-                  >
-                    <LinkedinLogo size={16} />
-                  </a>
+                  {/* LinkedIn Link (only when profile URL exists) */}
+                  {contact.linkedinUrl && (
+                    <a
+                      href={contact.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 p-1 rounded-md text-[#5B6478] hover:text-[#0077b5] hover:bg-white transition-colors"
+                      title={`View ${contact.fullName} on LinkedIn`}
+                    >
+                      <LinkedinLogo size={16} />
+                    </a>
+                  )}
                 </div>
 
                 {/* Email Address & Actions */}
@@ -209,23 +215,33 @@ export function CompanyContactsCard({
 
                     {/* Verified Confidence Badge */}
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider ${
+                      title={
                         contact.confidenceTier === "verified"
-                          ? "bg-emerald-100 text-emerald-800"
+                          ? "Confirmed corporate email syntax pattern"
                           : contact.confidenceTier === "high_confidence"
+                            ? "High-confidence pattern match for this company domain"
+                            : "Estimated from standard corporate email syntax (not SMTP-verified)"
+                      }
+                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider ${contact.confidenceTier === "verified"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : contact.confidenceTier === "high_confidence"
                           ? "bg-amber-100 text-amber-800"
                           : "bg-neutral-100 text-neutral-700"
-                      }`}
+                        }`}
                     >
-                      {contact.confidenceTier.replace("_", " ")}
+                      {contact.confidenceTier === "verified"
+                        ? "Verified Pattern"
+                        : contact.confidenceTier === "high_confidence"
+                          ? "High Confidence"
+                          : "Pattern Inferred"}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleCopyEmail(contact)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-[#16213A] bg-white hover:bg-[#FAF7F0] border border-[#E5E1D8] rounded-md transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-[#16213A] bg-white hover:bg-[#FAF7F0] border border-[#E5E1D8] rounded-md transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {isCopied ? (
                         <>
@@ -243,7 +259,7 @@ export function CompanyContactsCard({
                     <button
                       type="button"
                       onClick={() => setActiveContactForOutreach(contact)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-[#2D5F8A] hover:bg-[#2D5F8A]/90 rounded-md transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-[#2D5F8A] hover:bg-[#2D5F8A]/90 rounded-md transition-colors cursor-pointer whitespace-nowrap"
                     >
                       <PaperPlaneTilt size={12} />
                       <span>Draft Outreach</span>

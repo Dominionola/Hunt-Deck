@@ -2,6 +2,7 @@ import { z } from "zod";
 import { plainJobText, BoardRequestError } from "./publicBoard";
 import type { RawIngestedJob } from "./types";
 import { extractTechStack } from "../techStackExtractor";
+import { resolveDisplayCompanyName } from "@/services/contacts/contactIntelligenceService";
 import type {
   FreehireSourceFilter,
   FreehireWorkMode,
@@ -197,7 +198,7 @@ function normalizeFreehireItem(entry: unknown): FreehireNormalizedJob | null {
     publicSlug: item.public_slug,
     sourceName: item.source ?? "freehire",
     title: item.title.trim().slice(0, 300),
-    company: item.company.trim().slice(0, 200),
+    company: resolveDisplayCompanyName(item.company.trim(), description).slice(0, 200),
     description,
     location,
     salaryMin,

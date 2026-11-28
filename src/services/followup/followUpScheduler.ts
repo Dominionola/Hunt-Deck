@@ -38,10 +38,25 @@ export interface FollowUpScheduleItem {
 }
 
 /**
+ * Safely parses any date string, Date instance, or fallback to now
+ */
+export function safeDate(input?: string | Date | null, fallback: Date = new Date()): Date {
+  if (!input) return new Date(fallback);
+  if (input instanceof Date) {
+    return isNaN(input.getTime()) ? new Date(fallback) : new Date(input);
+  }
+  const parsed = new Date(input);
+  if (isNaN(parsed.getTime())) {
+    return new Date(fallback);
+  }
+  return parsed;
+}
+
+/**
  * Adds business days to a given date, skipping Saturdays and Sundays
  */
 export function addBusinessDays(startDate: Date, businessDaysToAdd: number): Date {
-  const result = new Date(startDate);
+  const result = safeDate(startDate);
   let added = 0;
 
   while (added < businessDaysToAdd) {
@@ -57,20 +72,21 @@ export function addBusinessDays(startDate: Date, businessDaysToAdd: number): Dat
 }
 
 /**
- * Formats a Date to YYYY-MM-DD string
+ * Formats a Date to YYYY-MM-DD string safely
  */
 export function formatDateIso(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const valid = safeDate(date);
+  return valid.toISOString().split("T")[0];
 }
 
 /**
  * Computes calendar day difference between date and now
  */
 export function computeDaysDifference(targetDateStr: string, now: Date = new Date()): number {
-  const target = new Date(targetDateStr);
+  const target = safeDate(targetDateStr, now);
   target.setHours(0, 0, 0, 0);
 
-  const current = new Date(now);
+  const current = safeDate(now);
   current.setHours(0, 0, 0, 0);
 
   const diffMs = target.getTime() - current.getTime();
@@ -106,7 +122,7 @@ export function generateApplicationFollowUpSchedule(
 
   // 1. Follow-Up #1: 6 business days after appliedDate
   if (application.appliedDate) {
-    const applied = new Date(application.appliedDate);
+    const applied = safeDate(application.appliedDate, now);
     const fu1Date = addBusinessDays(applied, 6);
     const fu1DateStr = formatDateIso(fu1Date);
     const fu1Diff = computeDaysDifference(fu1DateStr, now);
@@ -149,7 +165,7 @@ export function generateApplicationFollowUpSchedule(
 
   // 3. Post-Interview Thank-You: 24 hours after interview date
   if (application.interviewDate) {
-    const interview = new Date(application.interviewDate);
+    const interview = safeDate(application.interviewDate, now);
     const thankYouDate = new Date(interview.getTime() + 24 * 60 * 60 * 1000);
     const tyDateStr = formatDateIso(thankYouDate);
     const tyDiff = computeDaysDifference(tyDateStr, now);

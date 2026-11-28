@@ -23,8 +23,13 @@ export async function POST(request: Request) {
     const client = createClient(await cookies());
     const { data: authData, error } = await client.auth.signInWithPassword(parsed.data);
     if (error || !authData.user) {
+      const msg = error?.message || "";
+      const emailNotConfirmed = /email not confirmed|confirm your email/i.test(msg);
       return NextResponse.json({
-        error: error?.message || "Unable to sign in. Check your email and password, and confirm your email address first."
+        error: emailNotConfirmed
+          ? "Please confirm your email address before signing in. Check your inbox or resend the verification link below."
+          : msg || "Unable to sign in. Check your email and password, and confirm your email address first.",
+        emailNotConfirmed,
       }, { status: 401, headers: { "Cache-Control": "no-store" } });
     }
 
