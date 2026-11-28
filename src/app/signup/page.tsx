@@ -44,15 +44,22 @@ export default function SignUpPage() {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Automatically detect when user verifies via confirmation link in another tab
+  // Automatically detect when user verifies THIS exact email via confirmation link in another tab
   useEffect(() => {
     if (!confirmationRequired) return;
 
     let active = true;
+    const targetEmail = email.trim().toLowerCase();
+
     const checkSession = async () => {
       try {
         const res = await fetch("/api/auth/session", { cache: "no-store" });
-        if (res.ok && active) {
+        if (!res.ok || !active) return;
+
+        const data = (await res.json()) as { user?: { email?: string | null } };
+        const sessionEmail = data.user?.email?.trim().toLowerCase();
+
+        if (sessionEmail && sessionEmail === targetEmail) {
           toast.success("Email Verified!", {
             description: "Your account is active. Redirecting to onboarding...",
           });
@@ -73,7 +80,7 @@ export default function SignUpPage() {
       clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [confirmationRequired, router]);
+  }, [confirmationRequired, email, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,17 +138,21 @@ export default function SignUpPage() {
   const handleCheckVerified = async () => {
     setErrorMessage(null);
     setIsCheckingStatus(true);
+    const targetEmail = email.trim().toLowerCase();
 
     try {
-      // 1. Check if the callback tab already authenticated the browser session
+      // 1. Check if the callback tab already authenticated THIS exact email in this browser
       const sessionRes = await fetch("/api/auth/session", { cache: "no-store" });
       if (sessionRes.ok) {
-        toast.success("Email Verified!", {
-          description: "Welcome to Hunt Deck! Let's personalize your profile.",
-        });
-        router.push("/onboarding");
-        router.refresh();
-        return;
+        const sessionData = (await sessionRes.json()) as { user?: { email?: string | null } };
+        if (sessionData.user?.email?.trim().toLowerCase() === targetEmail) {
+          toast.success("Email Verified!", {
+            description: "Welcome to Hunt Deck! Let's personalize your profile.",
+          });
+          router.push("/onboarding");
+          router.refresh();
+          return;
+        }
       }
 
       // 2. If user opened the link in another device/email app (e.g. mobile Gmail),
@@ -276,8 +287,15 @@ export default function SignUpPage() {
                   <strong className="text-[#16213A] break-all">{email}</strong>. Click the link
                   inside to confirm your account.
                 </p>
-                <p className="text-[11px] text-[#5B6478]">
-                  This page checks automatically once confirmed. Remember to check Spam or Promotions if it doesn&apos;t appear within a minute.
+                <p className="text-[11px] text-[#5B6478] leading-relaxed">
+                  Check Spam or Promotions if it doesn&apos;t arrive within a minute. If you already registered with this email before, Supabase won&apos;t send a new link—use{" "}
+                  <Link
+                    href={`/login?email=${encodeURIComponent(email)}`}
+                    className="font-semibold text-[#2D5F8A] hover:underline"
+                  >
+                    Sign in instead
+                  </Link>
+                  .
                 </p>
               </div>
 

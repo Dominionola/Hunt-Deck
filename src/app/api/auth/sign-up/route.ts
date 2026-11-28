@@ -29,6 +29,13 @@ export async function POST(request: Request) {
     const supabase = createClient(cookieStore);
     const requestOrigin = origin || new URL(request.url).origin;
 
+    // Clear any previously logged-in browser session so stale cookies never trigger
+    // an immediate redirect during verification polling for a newly signed-up email.
+    const { data: existingSession } = await supabase.auth.getUser();
+    if (existingSession?.user) {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    }
+
     const result = await registerAccount(parsed.data, new URL("/auth/callback", requestOrigin).toString(), supabase.auth);
     if (result.error) {
       return NextResponse.json(
