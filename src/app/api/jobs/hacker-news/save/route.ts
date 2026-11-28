@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import { hnSaveJobSchema } from "@/lib/validations/hackerNews";
 import { persistIngestedJob } from "@/services/jobs/persistJob";
 
@@ -9,6 +10,9 @@ const headers = { "Cache-Control": "no-store" };
  * Saves and embeds an unadvertised Hacker News hiring post into the candidate's database opportunities.
  */
 export async function POST(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401, headers });

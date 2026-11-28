@@ -370,15 +370,17 @@ export function HackerNewsHiringFeed() {
                       {isExpanded ? "Show Less" : "Read Full Post"}
                     </button>
 
-                    <a
-                      href={job.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[#5B6478] hover:text-[#16213A]"
-                    >
-                      <span>View on Hacker News</span>
-                      <ArrowSquareOut size={13} />
-                    </a>
+                    {job.sourceUrl && /^https:\/\//i.test(job.sourceUrl) && (
+                      <a
+                        href={job.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[#5B6478] hover:text-[#16213A]"
+                      >
+                        <span>View on Hacker News</span>
+                        <ArrowSquareOut size={13} />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

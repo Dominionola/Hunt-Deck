@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
 import { deleteOwnedAccountData } from "@/services/db/accountDeletionService";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 
-export async function DELETE() {
+export async function DELETE(request?: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401, headers: { "Cache-Control": "no-store" } });

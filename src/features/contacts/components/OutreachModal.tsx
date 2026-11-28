@@ -181,7 +181,7 @@ export function OutreachModal({
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                {contact.linkedinUrl ? (
+                {contact.linkedinUrl && /^https:\/\//i.test(contact.linkedinUrl) ? (
                   <a
                     href={contact.linkedinUrl}
                     target="_blank"

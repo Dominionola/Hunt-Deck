@@ -16,7 +16,18 @@ export const hnSaveJobSchema = z.object({
   title: z.string().min(1).max(300),
   location: z.string().max(300).optional(),
   description: z.string().min(10).max(50000),
-  applicationUrl: z.string().min(1).max(2000),
+  applicationUrl: z
+    .string()
+    .min(1)
+    .max(2000)
+    .refine((val) => {
+      try {
+        const parsed = new URL(val);
+        return parsed.protocol === "https:" || parsed.protocol === "http:" || parsed.protocol === "mailto:";
+      } catch {
+        return false;
+      }
+    }, "Valid http, https, or mailto URL required."),
   remoteType: z.enum(["REMOTE_ONLY", "HYBRID", "ONSITE", "ANY"]).default("ANY"),
   salaryMin: z.number().int().nonnegative().optional(),
   salaryMax: z.number().int().nonnegative().optional(),

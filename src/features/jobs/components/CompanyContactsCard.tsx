@@ -192,8 +192,8 @@ export function CompanyContactsCard({
                     </p>
                   </div>
 
-                  {/* LinkedIn Link (only when profile URL exists) */}
-                  {contact.linkedinUrl && (
+                  {/* LinkedIn Link (only when profile URL is safe HTTPS) */}
+                  {contact.linkedinUrl && /^https:\/\//i.test(contact.linkedinUrl) && (
                     <a
                       href={contact.linkedinUrl}
                       target="_blank"

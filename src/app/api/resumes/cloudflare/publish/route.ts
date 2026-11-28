@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import {
   createCloudflareQueueRestSender,
   drainCloudflareResumeOutbox,
@@ -12,6 +13,9 @@ const publishRequestSchema = z.object({
 }).strict();
 
 export async function POST(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401, headers: { "Cache-Control": "no-store" } });

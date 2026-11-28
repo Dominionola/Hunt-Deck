@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import { z } from "zod";
+
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 const exportSchema = z.object({
   fullName: z.string().min(1, "Name is required"),
@@ -31,6 +41,9 @@ const exportSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
@@ -149,12 +162,21 @@ export async function POST(request: Request) {
       });
     }
 
-    // 3. Default: Pure ATS Single-Column HTML (with print layout)
+    // 3. Default: Pure ATS Single-Column HTML (with print layout, strictly escaped)
+    const safeFullName = escapeHtml(fullName);
+    const safeTargetRole = targetRoleTitle ? escapeHtml(targetRoleTitle) : "";
+    const safeContactLine = [location, phone, email]
+      .filter((v): v is string => Boolean(v))
+      .map(escapeHtml)
+      .join(" &bull; ");
+    const safeSummary = summary ? escapeHtml(summary) : "";
+    const safeSkills = skills.map(escapeHtml).join(", ");
+
     const htmlBody = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${fullName} — ATS Resume</title>
+  <title>${safeFullName} — ATS Resume</title>
   <style>
     body {
       font-family: Arial, Calibri, Helvetica, sans-serif;
@@ -228,17 +250,17 @@ export async function POST(request: Request) {
   </style>
 </head>
 <body>
-  <h1>${fullName}</h1>
-  ${targetRoleTitle ? `<div class="target-title">Target Role: ${targetRoleTitle}</div>` : ""}
+  <h1>${safeFullName}</h1>
+  ${safeTargetRole ? `<div class="target-title">Target Role: ${safeTargetRole}</div>` : ""}
   <div class="contact-line">
-    ${[location, phone, email].filter(Boolean).join(" &bull; ")}
+    ${safeContactLine}
   </div>
 
-  ${summary ? `<h2>Professional Summary</h2><p>${summary}</p>` : ""}
+  ${safeSummary ? `<h2>Professional Summary</h2><p>${safeSummary}</p>` : ""}
 
   ${
-    skills.length > 0
-      ? `<h2>Technical Proficiencies</h2><p>${skills.join(", ")}</p>`
+    safeSkills
+      ? `<h2>Technical Proficiencies</h2><p>${safeSkills}</p>`
       : ""
   }
 
@@ -249,11 +271,11 @@ export async function POST(request: Request) {
       .map(
         (role) => `
       <div class="role-header">
-        <span><strong>${role.title}</strong>, <span class="role-company">${role.company}</span></span>
-        <span>${role.startDate} – ${role.isCurrent ? "Present" : role.endDate || "Present"}</span>
+        <span><strong>${escapeHtml(role.title)}</strong>, <span class="role-company">${escapeHtml(role.company)}</span></span>
+        <span>${escapeHtml(role.startDate)} – ${role.isCurrent ? "Present" : escapeHtml(role.endDate || "Present")}</span>
       </div>
       <ul>
-        ${role.bullets.map((b) => `<li>${b}</li>`).join("")}
+        ${role.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}
       </ul>`
       )
       .join("")}`
@@ -266,11 +288,15 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `attachment; filename="${sanitizedBaseName}-ats-resume.html"`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
       },
     });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to export resume.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to export resume." },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import {
   updatePipelineStage,
   addApplicationNote,
@@ -16,6 +17,9 @@ export async function PATCH(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
@@ -50,16 +54,18 @@ export async function PATCH(
       { success: true, application: updated },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to update application.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Failed to update application." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
@@ -76,9 +82,8 @@ export async function DELETE(
       { success: true, message: "Application removed from pipeline." },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to delete application.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Failed to delete application." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 

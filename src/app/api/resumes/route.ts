@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
 import { getPrimaryResume, getUserResumes, updateResumeParsedData } from "@/services/db/resumeService";
 import { db } from "@/lib/db";
+import { resumeParsedDataSchema } from "@/lib/validations/resume";
+import { updateProfileSchema } from "@/lib/validations/auth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
+
+const updateResumeBodySchema = z
+  .object({
+    resumeId: z.string().min(1).max(120).optional(),
+    parsedData: resumeParsedDataSchema.optional(),
+    profile: updateProfileSchema.optional(),
+  })
+  .strict();
 
 export async function GET() {
   const user = await getAuthenticatedUser();
@@ -55,6 +67,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
@@ -64,8 +79,16 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const body = await request.json();
-    const { resumeId, parsedData, profile } = body;
+    const rawBody: unknown = await request.json();
+    const parsed = updateResumeBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid resume update payload." },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const { resumeId, parsedData, profile } = parsed.data;
 
     let targetResumeId = resumeId;
     if (!targetResumeId) {
@@ -100,9 +123,11 @@ export async function PUT(request: Request) {
       { success: true, message: "Profile and resume updated successfully." },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to update resume.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to update resume." },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
 

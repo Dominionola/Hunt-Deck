@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import { validatePdfUpload } from "@/lib/validations/upload";
 import { stageResumeForWorker } from "@/services/storage/r2Service";
 import { enqueueResume, enforceResumeRateLimit, getOwnedResumeJob, resumeJobId } from "@/services/queue/resumeQueue";
@@ -23,6 +24,9 @@ function mapCloudflareState(state: string): "waiting" | "active" | "completed" |
 }
 
 export async function POST(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) return NextResponse.json({ error: "Please sign in to upload your resume." }, { status: 401, headers: { "Cache-Control": "no-store" } });
   try {

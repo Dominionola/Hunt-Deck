@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import {
   getUserPipelineApplications,
   createOrUpsertPipelineOpportunity,
@@ -48,13 +49,15 @@ export async function GET() {
       },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to load applications.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Failed to load applications." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
 export async function POST(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
@@ -83,9 +86,8 @@ export async function POST(request: Request) {
       },
       { status: 201, headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to create application.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Failed to create application." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 

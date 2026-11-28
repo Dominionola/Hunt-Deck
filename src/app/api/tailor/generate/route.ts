@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/services/auth/serverAuth";
+import { verifySameOrigin } from "@/lib/security/originCheck";
 import { getPrimaryResume, getUserResumes } from "@/services/db/resumeService";
 import { db } from "@/lib/db";
 import {
@@ -23,6 +24,9 @@ const generateTailorSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const originError = verifySameOrigin(request);
+  if (originError) return originError;
+
   // 1. Authenticate user
   const user = await getAuthenticatedUser();
   if (!user) {
